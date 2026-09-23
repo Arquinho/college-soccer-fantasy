@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>College Soccer Fantasy</title>
+  <link rel="stylesheet" href="styles.css?v=10.0.0" />
+</head>
+<body>
+  <div id="loginScreen" class="login-screen">
+    <div class="login-brand-block">
+      <div class="login-mark">XI</div>
+      <div><div class="login-wordmark">COLLEGE SOCCER</div><div class="login-submark">FANTASY</div></div>
+    </div>
+    <form id="loginForm" class="login-panel">
+      <div class="login-langs"><button data-login-lang="en" class="active">EN</button><button data-login-lang="pt">PT</button><button data-login-lang="es">ES</button></div>
+      <div class="eyebrow">2026 COLLEGE SOCCER FANTASY</div>
+      <h1 data-i18n="loginHeadline">College soccer. One fantasy game.</h1>
+      <p data-i18n="loginSub">NCAA D1, D2, D3, NAIA and NJCAA D1 in separate worlds.</p>
+      <div class="login-value-row"><span>⚽ Live scores</span><span>🏆 Rankings</span><span>📋 Fantasy XI</span></div>
+      <label>Email<input id="loginEmail" type="email" autocomplete="email" value="manager@collegefantasy.com" /></label>
+      <label><span data-i18n="password">Password</span><div class="password-wrap"><input id="loginPassword" type="password" autocomplete="current-password" value="fantasy" /><button id="togglePassword" type="button" aria-label="Show password">Show</button></div></label>
+      <div class="login-options"><label class="remember-row"><input id="rememberSession" type="checkbox" checked> Keep me signed in for this browser session</label><button id="forgotPassword" type="button" class="login-text-btn">Forgot password?</button></div>
+      <button id="enterApp" class="btn btn-primary btn-full" data-i18n="enter">Enter</button>
+      <div class="login-divider"><span>or</span></div>
+      <button id="demoLogin" type="button" class="btn btn-soft btn-full">CONTINUE AS DEMO MANAGER</button>
+      <button id="createAccountLogin" type="button" class="login-create">New to College Soccer Fantasy? <b>Create account</b></button>
+      <small data-i18n="loginLegal">Delivery prototype — no real payment is processed.</small>
+    </form>
+  </div>
+
+  <div id="bootOverlay" class="boot-overlay hidden"><div class="boot-card"><div class="boot-logo">XI</div><div><b>Loading your 2026 fantasy world…</b><span>Dashboard first. Live data refreshes in the background.</span></div><div class="boot-bar"><i></i></div></div></div>
+
+  <div id="appShell" class="app-shell hidden">
+    <header class="main-header">
+      <div class="app-width nav-row">
+        <button class="menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+        <button class="brand-btn" data-jump="dashboard"><span class="brand-icon">XI</span><span class="brand-text">COLLEGE SOCCER<br><strong>FANTASY</strong></span></button>
+        <nav id="nav"></nav>
+        <div class="nav-right">
+          <select id="worldSelector" class="nav-world"></select>
+          <div class="lang-group"><button data-lang="en" class="active">EN</button><button data-lang="pt">PT</button><button data-lang="es">ES</button></div>
+          <button class="bell" data-action="notifications" title="Notifications">🔔</button>
+          <button class="avatar" data-action="profile">LC</button>
+        </div>
+      </div>
+    </header>
+    <div class="season-bar">
+      <div class="app-width season-inner">
+        <span class="market-status"><span class="status-clock">◷</span> <b id="marketStatusText">Market open — closes Saturday at 2:59 PM ET.</b> <span>Round 6</span></span>
+        <div class="season-actions"><button class="btn btn-white" id="gamesThisRound">▣ GAMES THIS ROUND</button><button class="btn btn-outline-dark" id="lineupReminder">🔔 LINEUP REMINDER</button></div>
+      </div>
+    </div>
+
+    <main class="app-width page-area">
+      <section id="dashboard" class="page active">
+        <div class="dashboard-layout dashboard-v8">
+          <aside class="dash-left">
+            <article class="panel profile-panel">
+              <div class="shield">CXI</div>
+              <h3>Campus Eleven F.C.</h3><p>@manager · 2026 season</p>
+              <div class="profile-stats"><div><b id="profileLastRound">87.4</b><span>Last Round</span></div><div><b id="profileBudget">120.0M</b><span>Budget</span></div><div><b id="profileRank">#4,281</b><span>Global Rank</span></div></div>
+              <span id="profilePlayers" class="hidden">0</span>
+              <button class="btn btn-primary btn-full" data-action="profile" data-i18n="viewProfile">VIEW PROFILE</button>
+            </article>
+            <article class="panel round-panel"><div class="panel-title"><h3 data-i18n="latestRound">World participation</h3><span class="green-dot"></span></div><div id="worldRoundRows"></div><p class="fine" data-i18n="worldNote">Each world is independent. Play only the ones you want.</p></article>
+            <article class="panel quick-panel"><h3 data-i18n="quickAccess">Quick Access</h3><div class="quick-grid quick-grid-v8">
+              <button id="quickCreateLeague">👥<span>Create League</span></button>
+              <button id="browsePredictions">⚽<span>Pick'em</span></button>
+              <button data-jump="boost">⚡<span>Budget Boost</span></button>
+            </div><div id="pickGamesPreview" class="hidden"></div><button id="savePreviewPredictions" class="hidden">Save</button></article>
+          </aside>
+
+          <div class="dash-center">
+            <article class="panel news-panel">
+              <div class="news-heading"><div><div class="eyebrow" id="newsWorldLabel">NCAA DIVISION I</div><h2 data-i18n="newsTitle">College Soccer News</h2></div><div class="news-actions"><span class="news-source-text">Source: <b id="newsSourceLabel">NCAA.com</b></span><button id="refreshNews" class="link-btn">↻ <span data-i18n="refresh">Refresh</span></button><a id="newsSourceLink" class="btn btn-outline" href="https://www.ncaa.com/sports/soccer-men/d1" target="_blank" rel="noreferrer">OPEN SOURCE ↗</a></div></div>
+              <div class="pill-tabs news-tabs"><button class="active" data-news-filter="all">Top Stories</button><button data-news-filter="players">Players</button><button data-news-filter="rankings" data-i18n="rankings">Rankings</button><button data-news-filter="transfers">Transfers</button><button data-news-filter="conferences">Conferences</button></div>
+              <div id="newsMosaic" class="news-mosaic"></div>
+              <div class="news-shortcuts"><button data-ranking-cat-jump="scorers" data-jump="rankings"><span class="round-icon">↔</span><div><b>Transfer Tracker</b><small>Latest moves and commitments.</small></div><span>›</span></button><button data-ranking-cat-jump="national" data-jump="rankings"><span class="round-icon">▥</span><div><b>Top 25 Rankings</b><small>National poll and analysis.</small></div><span>›</span></button><button data-ranking-cat-jump="standings" data-jump="rankings"><span class="round-icon">🏆</span><div><b>Conference Hub</b><small>Standings, schedules and matchups.</small></div><span>›</span></button></div>
+            </article>
+          </div>
+
+          <aside class="dash-right">
+            <article class="panel score-panel live-today-panel"><div class="panel-title"><div><div class="eyebrow">SCORES</div><h2>Live & Today</h2></div><button id="seeAllScores" class="link-btn">See all →</button></div><div id="dashGames"></div><button id="viewAllResults" class="btn btn-soft btn-full">VIEW FULL SCHEDULE →</button></article>
+            <article class="panel lineup-cta prospects-panel"><div class="eyebrow">YOUR TEAM</div><h3>Ready for the next round?</h3><p>Five players to watch based on verified 2026 production.</p><div id="prospectList" class="prospect-list"></div><button class="btn btn-primary btn-full" data-jump="team">BUILD MY TEAM</button></article>
+          </aside>
+        </div>
+      </section>
+
+      <section id="team" class="page">
+        <div class="page-head lineup-head"><div><div class="eyebrow">LINEUP</div><h1>My Lineup</h1><p id="lineupRoundCopy">Round 6 · Market closes Saturday at 2:59 PM ET</p></div><div id="lineupWorldTabs" class="world-tabs"></div></div>
+        <div class="lineup-summary panel lineup-summary-v8"><div class="formation-box"><small data-i18n="formation">Formation</small><div id="formationButtons"></div></div><div><small>Budget</small><b id="sumBase">120.0M</b></div><div><small>Spent</small><b id="sumSpent">0.0M</b></div><div><small>Remaining</small><b id="sumRemain" class="green-text">120.0M</b></div><div class="summary-actions"><button id="howScoring" class="btn btn-soft" data-i18n="howScoring">HOW SCORING WORKS</button><button id="confirmTeam" class="btn btn-primary" data-i18n="confirmLineup">CONFIRM LINEUP</button></div><b id="sumAvg" class="hidden">0</b><span data-i18n="playersSelected" class="hidden">Players (0/11)</span></div>
+        <div class="lineup-grid lineup-grid-v8">
+          <div class="panel stadium-card"><div class="stadium-title"><div><div class="eyebrow">COLLEGE SOCCER FANTASY</div><h2>Choose your XI</h2></div><button class="link-btn" id="stadiumViewBtn">↗ Field view</button></div><div class="stadium-view"><div class="stadium-stands"><div class="field-surface"><div class="field-lines"><span class="half-line"></span><span class="center-circle"></span><span class="box box-top"></span><span class="box box-bottom"></span><span class="goal goal-top"></span><span class="goal goal-bottom"></span></div></div></div><div id="pitchSlots" class="pitch-slots"></div><div id="coachSlots" class="coach-slots"></div></div><div id="benchCards" class="bench-cards"></div></div>
+          <div class="lineup-right"><article class="panel lineup-help-card"><div class="lineup-ball">⚽</div><h2>Choose a position<br>to search for players</h2><p>Click any open position on the field to browse available players in the market.</p><button id="openAnyMarket" class="btn btn-primary btn-full">BROWSE PLAYERS</button></article><article class="panel roster-card"><div class="panel-title"><div><div class="eyebrow">YOUR XI</div><h2>Your Lineup</h2></div><span class="year-tag">2026</span></div><div class="roster-head"><span>Pos.</span><span>Name</span><span>School</span><span>Conf.</span><span>Price</span><span></span></div><div id="rosterTable"></div></article><article class="panel roster-card bench-table-card"><div class="eyebrow">BENCH (OPTIONAL)</div><div class="roster-head"><span>Pos.</span><span>Name</span><span>School</span><span>Conf.</span><span>Price</span><span></span></div><div id="benchTable"></div></article></div>
+        </div>
+      </section>
+
+      <section id="market" class="page market-secondary">
+        <div class="page-head market-select-head"><div><div id="marketEyebrow" class="eyebrow">NCAA D1 · 2026</div><h1 id="marketTitleDynamic">Select a Player</h1><p id="marketSubtitleDynamic">Choose a player to add to your team.</p></div><div class="market-head-actions"><button id="backToLineup" class="btn btn-soft">← BACK TO LINEUP</button><div class="budget-box budget-card-modern">
+  <div class="budget-icon">C$</div>
+  <div class="budget-copy"><small>REMAINING BUDGET</small><div class="budget-amount"><span id="budgetLabel">120.0</span><em>M</em></div><span id="boostBudgetHint">+0.0M boost</span></div>
+</div></div></div>
+        <div class="market-filters panel market-filters-v8"><select id="filterDivision"></select><select id="filterEntity"><option value="players">Players</option><option value="Head Coach">Head Coach</option><option value="Assistant Coach">Assistant Coach</option></select><select id="filterPos"><option value="all">All positions</option><option value="GK">GK</option><option value="DF">DF</option><option value="MF">MF</option><option value="FW">FW</option></select><select id="filterConf"><option value="all">All conferences</option></select><select id="filterSchool"><option value="all">All schools</option></select><select id="filterClass"><option value="all">All classes</option><option>Freshman</option><option>Sophomore</option><option>Junior</option><option>Senior</option><option>Graduate</option></select><select id="filterSort"><option value="rating_desc">Overall: high to low</option><option value="price_desc">Price: high to low</option><option value="price_asc">Price: low to high</option><option value="minutes">Minutes: high to low</option></select><div class="search-wrap">⌕<input id="filterSearch" placeholder="Search players..." /></div><button id="marketSync" class="btn btn-soft">REFRESH DATA</button></div>
+        <div class="market-select-layout"><aside class="panel mini-lineup-panel"><div class="eyebrow">YOUR LINEUP</div><h3 id="miniLineupTitle">4-3-3</h3><div class="mini-field"><div class="mini-field-lines"></div><div id="miniPitchSlots" class="mini-pitch-slots"></div></div><div id="miniCoachSlots" class="mini-coaches"></div></aside><div class="market-results"><div class="market-toolbar"><span id="marketCount"></span><button id="clearFilters" class="link-btn">Reset filters</button></div><div class="market-table-head"><span>Player</span><span>Overall</span><span>Price</span><span>Var (Last)</span><span>Next Match</span><span></span></div><div id="marketGrid" class="market-grid market-grid-v8"></div></div></div>
+      </section>
+
+      <section id="boost" class="page">
+        <div class="page-head"><div><div class="eyebrow">COLLEGE POINTS</div><h1>Budget Boost</h1><p>Optional fantasy budget benefits. This prototype activates them locally and never processes payment.</p></div><div class="budget-box"><small>Your boost</small><b><span id="boostTotal">0.0</span>M</b><span>valid in this world</span></div></div>
+        <div class="panel boost-layout"><div class="boost-intro"><span class="boost-badge">FIRST BOOST</span><h2>Start with more flexibility.</h2><p>Your first Standard Boost receives a launch bonus in this prototype.</p><div class="boost-flow"><div>+5M</div><span>→</span><div>+8M</div></div><small>Prototype only — no payment is processed.</small></div><div id="boostGrid" class="boost-grid"></div><aside class="boost-benefits"><h3>Why managers use boosts</h3><p>⚡ More flexibility when premium players rise in value.</p><p>🎯 Build around a stronger captain or coaching staff.</p><p>🧠 Keep your strategy independent in each world.</p></aside></div>
+      </section>
+
+      <section id="rankings" class="page">
+        <div class="page-head ranking-top"><div><div class="eyebrow">COLLEGE SOCCER</div><h1 data-i18n="rankings">Rankings</h1><p data-i18n="rankingsDesc">National rankings, conference tables, scoring leaders, assist leaders and defensive performance across every world.</p></div><div class="ranking-selects"><select id="rankingWorld"></select><select id="standingConf"></select></div></div>
+        <div class="pill-tabs ranking-tabs"><button data-ranking-cat="fantasy">Fantasy Managers</button><button data-ranking-cat="national">NCAA Rankings</button><button class="active" data-ranking-cat="scorers">Players</button><button data-ranking-cat="standings">Conferences</button><button class="hidden" data-ranking-cat="assists">Assist leaders</button><button class="hidden" data-ranking-cat="defenses">Best defenses</button><button class="hidden" data-ranking-cat="clean_sheets">Clean sheets</button></div>
+        <div class="ranking-layout"><article class="panel ranking-main"><div class="ranking-title-row"><div><h2 id="rankingTitle">Top Scorers</h2><p id="rankingSubtitle">Players with the most goals across all conferences.</p></div><div><small id="rankingUpdated">Verified source status</small> <button class="link-btn" id="rankingRefresh">↻ Refresh</button></div></div><div id="rankingTable"></div><div class="pagination"><span id="rankShowing">Showing 0</span><div id="rankPager" class="rank-pager"></div></div></article><aside class="ranking-side"><article class="panel stat-side"><h3>▥ Quick Stats</h3><div id="quickStats" class="quick-stats"></div></article><article class="panel stat-side"><h3>🏆 Conference Leaders</h3><div id="conferenceLeaders"></div></article><article class="panel stat-side"><h3>▥ Related Rankings</h3><div class="related-links"><button data-ranking-cat-jump="national">National ranking <span>›</span></button><button data-ranking-cat-jump="standings">Conference standings <span>›</span></button><button data-ranking-cat-jump="scorers">Top scorers <span>›</span></button><button data-ranking-cat-jump="assists">Assist leaders <span>›</span></button></div></article></aside></div>
+      </section>
+
+      <section id="competitions" class="page">
+        <div class="page-head"><div><div class="eyebrow">FANTASY LEAGUES</div><h1 data-i18n="competitions">Competitions</h1><p data-i18n="competitionsDesc">Your private and public fantasy leagues. You never have to play every world.</p></div><div class="head-actions"><button id="createLeague" class="btn btn-primary">CREATE LEAGUE</button><button id="joinLeague" class="btn btn-soft">JOIN LEAGUE</button></div></div>
+        <div id="myLeagues" class="league-cards"></div><article class="panel worlds-panel"><div class="eyebrow">FEATURED COMPETITIONS</div><h2>Choose where you want to compete</h2><p>Every world has its own budget, lineup, points and leagues.</p><div id="worldCards" class="world-cards"></div></article>
+      </section>
+
+      <section id="games" class="page games-page"><div class="page-head"><div><div class="eyebrow" id="gamesWorldEyebrow">2026 · ACTIVE WORLD</div><h1 data-i18n="games">Games & Results</h1><p data-i18n="gamesDesc">Choose a date, conference and school to browse every game in the active world.</p></div><div class="head-actions"><a id="gamesOfficialSource" class="btn btn-outline" href="https://www.ncaa.com/sports/soccer-men/d1" target="_blank" rel="noreferrer">OFFICIAL SOURCE ↗</a><button id="gamesSync" class="btn btn-primary">SYNC 2026 SCHEDULE</button></div></div>
+        <div class="panel ncaa-scoreboard-controls"><div class="scoreboard-filter-row"><select id="gamesConference"><option value="all">All conferences</option></select><select id="gamesSchool"><option value="all">All schools</option></select><div class="calendar-control"><input id="gamesDate" type="date" min="2026-08-01" max="2026-12-31"><button id="gamesCalendarBtn" type="button" class="calendar-button" aria-label="Calendar">📅</button></div></div><div id="gamesDateStrip" class="games-date-strip"></div><div class="scoreboard-meta"><h2 id="gamesDateTitle">Games</h2><span id="gamesCoverage" class="coverage-note"></span></div></div>
+        <div class="pill-tabs game-tabs"><button class="active" data-game-filter="all">Schedule</button><button data-game-filter="live">Live</button><button data-game-filter="scheduled">Upcoming</button><button data-game-filter="finished">Results</button><button id="openPickemFromGames">Pick'em</button></div><div id="gamesList" class="games-list ncaa-games-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <div id="modal" class="modal"><div class="modal-card"><button id="modalClose" class="modal-x">×</button><div id="modalBody"></div></div></div>
+  <script src="app.js?v=10.0.0"></script>
+</body>
+</html>

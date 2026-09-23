@@ -1,0 +1,5 @@
+College Fantasy v1
+Schedule engine: v5 exact-date authoritative cache + alias-safe dedupe
+Legacy migration: roster/stats only; old prototype game caches are never imported
+Fixes: 8-game Sep 23 D1 slate, duplicate school aliases, UC San Diego vs San Diego identity, 24-hour time display
+Updated: 2026-09-23

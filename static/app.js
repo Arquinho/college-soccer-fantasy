@@ -38,8 +38,9 @@ const verifiedGameSnapshots={
  ]}
 };
 const saved=JSON.parse(localStorage.getItem('college_fantasy_v1_state')||'{}');
-const state={lang:saved.lang||'en',activeWorld:saved.activeWorld||'D1',profile:saved.profile||{team:'Campus Eleven F.C.',handle:'manager',initials:'LC'},participation:saved.participation||{D1:true,D2:false,D3:false,NAIA:false,NJCAA1:false},worldState:saved.worldState||{},predictions:saved.predictions||{},leagues:saved.leagues||[],players:[],coaches:[],games:[],news:[],filters:{conferences:[],schools:[]},teamRows:[],gameCoverage:null,statsCoverage:null,statsSyncing:{},rankingWorld:saved.rankingWorld||'D1',rankingCat:saved.rankingCat||'scorers',rankingPage:1,rankingPageSize:15,rankingConferences:{},rankingSyncing:false,gameFilter:'all',gameConference:'all',gameSchool:'all',gameDate:saved.gameDate||isoToday(),predConference:'all',predSchool:'all',predPage:1,predPageSize:15,newsFilter:'all',rankingRemote:{},rankingLoading:{},seasonSyncing:{},refreshTimersStarted:false,marketVisibleCount:60,marketContext:{type:'players',position:'all',bench:false},rosterLoaded:false,filtersLoaded:false,extendedGamesLoaded:false,coverageLoaded:false,loadToken:0};
-function save(){localStorage.setItem('college_fantasy_v1_state',JSON.stringify({lang:state.lang,activeWorld:state.activeWorld,profile:state.profile,participation:state.participation,worldState:state.worldState,predictions:state.predictions,leagues:state.leagues,rankingWorld:state.rankingWorld,rankingCat:state.rankingCat,gameDate:state.gameDate}))}
+const state={lang:saved.lang||'en',activeWorld:saved.activeWorld||'D1',profile:saved.profile||{team:'Campus Eleven F.C.',handle:'manager',initials:'LC'},participation:saved.participation||{D1:true,D2:false,D3:false,NAIA:false,NJCAA1:false},worldState:saved.worldState||{},predictions:saved.predictions||{},leagues:saved.leagues||[],dashboardCache:saved.dashboardCache||{},players:[],coaches:[],games:[],news:[],filters:{conferences:[],schools:[]},teamRows:[],gameCoverage:null,statsCoverage:null,statsSyncing:{},rankingWorld:saved.rankingWorld||'D1',rankingCat:saved.rankingCat||'scorers',rankingPage:1,rankingPageSize:15,rankingConferences:{},rankingSyncing:false,gameFilter:'all',gameConference:'all',gameSchool:'all',gameDate:saved.gameDate||isoToday(),predConference:'all',predSchool:'all',predPage:1,predPageSize:15,newsFilter:'all',rankingRemote:{},rankingLoading:{},seasonSyncing:{},refreshTimersStarted:false,marketVisibleCount:60,marketContext:{type:'players',position:'all',bench:false},rosterLoaded:false,rosterPromise:null,playerBuckets:{},coachesLoaded:false,coachPromise:null,marketLoading:false,filtersLoaded:false,extendedGamesLoaded:false,coverageLoaded:false,loadToken:0};
+function save(){localStorage.setItem('college_fantasy_v1_state',JSON.stringify({lang:state.lang,activeWorld:state.activeWorld,profile:state.profile,participation:state.participation,worldState:state.worldState,predictions:state.predictions,leagues:state.leagues,dashboardCache:state.dashboardCache,rankingWorld:state.rankingWorld,rankingCat:state.rankingCat,gameDate:state.gameDate}))}
+function cacheDashboardWorld(world=state.activeWorld){if(world!==state.activeWorld)return;state.dashboardCache[world]={news:(state.news||[]).slice(0,12),games:(state.games||[]).filter(g=>g.game_date>=isoOffset(-1)&&g.game_date<=isoOffset(10)).slice(0,220),prospects:(state.prospects||[]).slice(0,8),cached_at:new Date().toISOString()};save()}
 function tr(k){return i18n[state.lang]?.[k]||i18n.en[k]||k}
 function ws(world=state.activeWorld){if(!state.worldState[world])state.worldState[world]={formation:'4-3-3',boost:0,lineup:{starters:[],bench:{},HC:null,AC:null},seeded:false};return state.worldState[world]}
 function baseBudget(world=state.activeWorld){return worlds[world].budget}
@@ -62,33 +63,36 @@ function buildNav(){const items=[['dashboard','dashboard'],['team','lineup'],['r
 function applyLang(){document.documentElement.lang=state.lang;$$('[data-i18n]').forEach(el=>el.textContent=tr(el.dataset.i18n));$$('[data-i18n-placeholder]').forEach(el=>el.placeholder=tr(el.dataset.i18nPlaceholder));$$('[data-lang]').forEach(b=>b.classList.toggle('active',b.dataset.lang===state.lang));$$('[data-login-lang]').forEach(b=>b.classList.toggle('active',b.dataset.loginLang===state.lang));buildNav();markActiveNav()}
 function markActiveNav(){let active=$('.page.active')?.id;if(active==='market')active='team';$$('.nav-tab').forEach(b=>b.classList.toggle('active',b.dataset.jump===active))}
 function renderWorldSelectors(){const options=worldOrder.map(w=>`<option value="${w}">${worlds[w].label}</option>`).join('');['worldSelector','filterDivision','rankingWorld'].forEach(id=>{const el=$('#'+id);if(!el)return;el.innerHTML=options;el.value=id==='rankingWorld'?state.rankingWorld:state.activeWorld});if($('#profileBudget'))$('#profileBudget').textContent=money(totalBudget());if($('#profilePlayers'))$('#profilePlayers').textContent=selectedPlayerIds().length;if($('#profileRank')&&!$('#profileRank').textContent.trim())$('#profileRank').textContent='#4,281';const title=document.querySelector('.profile-panel h3');const sub=document.querySelector('.profile-panel p');if(title)title.textContent=state.profile.team||'Campus Eleven F.C.';if(sub)sub.textContent=`@${state.profile.handle||'manager'} · 2026 season`;if($('.avatar'))$('.avatar').textContent=state.profile.initials||'LC'}
-async function show(id){
- $$('.page').forEach(p=>p.classList.toggle('active',p.id===id));markActiveNav();window.scrollTo({top:0,behavior:'smooth'});
- if(id==='dashboard'){renderDashboard();refreshScoreboardPreview(false);refreshNewsLive(false);return}
+function show(id){
+ // Navigation must never wait on NCAA.com, SQLite reads, or the large player roster.
+ // Paint the requested page immediately; local cache hydration happens afterward.
+ $$('.page').forEach(p=>p.classList.toggle('active',p.id===id));
+ markActiveNav();
+ window.scrollTo({top:0,behavior:'auto'});
+ if(id==='dashboard'){renderDashboard();return}
  if(id==='team'){
+   // The lineup shell is completely local. Do not download the 5k+ player roster
+   // just because the user opened this page; that work made every subsequent
+   // click feel frozen while JSON was parsed/rendered on the main thread.
    renderTeam();
-   await ensureRosterLoaded();
-   if($('.page.active')?.id==='team')renderTeam();
    return
  }
  if(id==='market'){
    renderMarket();
-   await ensureRosterLoaded();
-   if($('.page.active')?.id==='market')renderMarket();
    return
  }
  if(id==='rankings'){
    renderRankings();
-   ensureFiltersLoaded().then(()=>{if($('.page.active')?.id==='rankings')renderRankings()});
-   if(state.rankingWorld==='D1' && !state.rankingWarmRequested){state.rankingWarmRequested=true;setTimeout(()=>refreshRankingData(),120)}
+   if(!state.filtersLoaded) setTimeout(()=>ensureFiltersLoaded().then(()=>{if($('.page.active')?.id==='rankings')renderRankings()}),0);
    return
  }
  if(id==='competitions'){renderCompetitions();return}
  if(id==='games'){
    renderGames();
-   Promise.all([ensureFiltersLoaded(),ensureExtendedGamesLoaded(),ensureCoverageLoaded()]).then(()=>{if($('.page.active')?.id==='games')renderGames()});
-   setTimeout(()=>syncSelectedGameDate(state.gameDate||isoToday()),40);
-   setTimeout(()=>prefetchGameStrip(state.gameDate||isoToday()),100);
+   // Only read local SQLite caches after the page is already visible. Never
+   // auto-refresh NCAA or prefetch seven dates from a navigation click.
+   setTimeout(()=>syncSelectedGameDate(state.gameDate||isoToday()),0);
+   setTimeout(()=>Promise.all([ensureFiltersLoaded(),ensureExtendedGamesLoaded(),ensureCoverageLoaded()]).then(()=>{if($('.page.active')?.id==='games')renderGames()}),0);
  }
 }
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
@@ -124,33 +128,77 @@ async function ensureCoverageLoaded(){
 }
 
 async function ensureRosterLoaded(){
- if(state.rosterLoaded)return;
+ if(state.rosterLoaded)return true;
+ if(state.rosterPromise)return state.rosterPromise;
  const world=state.activeWorld, token=state.loadToken;
- const [apiPlayers,apiCoaches]=await Promise.all([
-  jfetch(query('/api/players',{division:world}),[]),
-  jfetch(query('/api/coaches',{division:world}),[])
- ]);
- if(state.activeWorld!==world||state.loadToken!==token)return;
- state.players=(Array.isArray(apiPlayers)?apiPlayers:[]).map(normalizeApiPlayer);
- state.coaches=(Array.isArray(apiCoaches)?apiCoaches:[]).map(c=>({...c,id:`API-C${c.id}`,rating:clamp(Math.round(75+((Number(c.price||5)-4)/6)*23),75,98),verified:Boolean(c.source_url),hasStats:true}));
- state.rosterLoaded=true;
- await Promise.all([ensureFiltersLoaded(),ensureExtendedGamesLoaded(),ensureCoverageLoaded()]);
- buildFilters();
+ state.rosterPromise=(async()=>{
+  const apiPlayers=await jfetch(query('/api/players',{division:world}),[],15000);
+  if(state.activeWorld!==world||state.loadToken!==token)return false;
+  const players=(Array.isArray(apiPlayers)?apiPlayers:[]).map(normalizeApiPlayer);
+  if(players.length){state.players=players;state.rosterLoaded=true;state.playerBuckets={GK:true,DF:true,MF:true,FW:true,all:true}}
+  return state.rosterLoaded;
+ })();
+ try{return await state.rosterPromise}finally{state.rosterPromise=null}
+}
+async function ensurePlayersForPosition(position='all'){
+ const pos=position||'all';
+ if(pos==='all')return ensureRosterLoaded();
+ if(state.rosterLoaded||state.playerBuckets?.[pos])return true;
+ const world=state.activeWorld, token=state.loadToken;
+ const key=`${world}:${pos}`;
+ state.marketPromises=state.marketPromises||{};
+ if(state.marketPromises[key])return state.marketPromises[key];
+ state.marketLoading=true;if($('.page.active')?.id==='market')renderMarket();
+ state.marketPromises[key]=(async()=>{
+  const apiPlayers=await jfetch(query('/api/players',{division:world,position:pos}),[],10000);
+  if(state.activeWorld!==world||state.loadToken!==token)return false;
+  const incoming=(Array.isArray(apiPlayers)?apiPlayers:[]).map(normalizeApiPlayer);
+  if(incoming.length){
+   const byId=new Map((state.players||[]).map(p=>[p.id,p]));
+   incoming.forEach(p=>byId.set(p.id,p));state.players=[...byId.values()];
+  }
+  state.playerBuckets=state.playerBuckets||{};state.playerBuckets[pos]=true;
+  return incoming.length>0;
+ })();
+ try{return await state.marketPromises[key]}finally{delete state.marketPromises[key];state.marketLoading=false}
+}
+async function ensureCoachesLoaded(){
+ if(state.coachesLoaded)return true;
+ if(state.coachPromise)return state.coachPromise;
+ const world=state.activeWorld, token=state.loadToken;
+ state.marketLoading=true;if($('.page.active')?.id==='market')renderMarket();
+ state.coachPromise=(async()=>{
+  const apiCoaches=await jfetch(query('/api/coaches',{division:world}),[],8000);
+  if(state.activeWorld!==world||state.loadToken!==token)return false;
+  state.coaches=(Array.isArray(apiCoaches)?apiCoaches:[]).map(c=>({...c,id:`API-C${c.id}`,rating:clamp(Math.round(75+((Number(c.price||5)-4)/6)*23),75,98),verified:Boolean(c.source_url),hasStats:true}));
+  state.coachesLoaded=state.coaches.length>0;return state.coachesLoaded;
+ })();
+ try{return await state.coachPromise}finally{state.coachPromise=null;state.marketLoading=false}
+}
+async function ensureMarketData(entity='players',position='all'){
+ if(entity==='players')await ensurePlayersForPosition(position);
+ else await ensureCoachesLoaded();
+ if($('.page.active')?.id==='market'){refreshMarketDependentFilters();renderMarket()}
+ if($('.page.active')?.id==='team')renderTeam();
 }
 
 async function loadWorld(world){
  state.activeWorld=world; ws(world); save(); renderWorldSelectors();state.marketVisibleCount=60;state.loadToken++;
- state.players=[];state.coaches=[];state.games=[];state.news=[];state.filters={conferences:[],schools:[]};state.teamRows=[];
- state.gameCoverage=null;state.statsCoverage=null;state.rosterLoaded=false;state.filtersLoaded=false;state.extendedGamesLoaded=false;state.coverageLoaded=false;
+ const cachedDash=state.dashboardCache?.[world]||{};
+ state.players=[];state.coaches=[];state.games=Array.isArray(cachedDash.games)?cachedDash.games:[];state.news=Array.isArray(cachedDash.news)?cachedDash.news:[];state.prospects=Array.isArray(cachedDash.prospects)?cachedDash.prospects:[];state.filters={conferences:[],schools:[]};state.teamRows=[];
+ state.gameCoverage=null;state.statsCoverage=null;state.rosterLoaded=false;state.rosterPromise=null;state.playerBuckets={};state.coachesLoaded=false;state.coachPromise=null;state.marketLoading=false;state.marketPromises={};state.filtersLoaded=false;state.extendedGamesLoaded=false;state.coverageLoaded=false;
  buildFilters();renderAll();
 
  const token=state.loadToken;
  const today=isoToday();
+ // First paint is CACHE ONLY.  Do not make the evaluator wait on NCAA or
+ // school websites just to open the dashboard.  Fresh network checks run after
+ // the cached dashboard is already visible.
  const [apiNews,scoreboard,todayGames,nearGames]=await Promise.all([
-  jfetch(query('/api/news',{division:world,limit:8}),[]),
-  jfetch(query('/api/scoreboard-preview',{division:world}),[]),
-  jfetch(query('/api/games-date',{division:world,date:today}),{items:[]}),
-  jfetch(query('/api/games',{division:world,since:today,until:isoOffset(10)}),[])
+  jfetch(query('/api/news',{division:world,limit:8}),state.news,2200),
+  jfetch(query('/api/scoreboard-preview',{division:world}),state.games.filter(g=>g.game_date===today),2200),
+  jfetch(query('/api/games-date',{division:world,date:today}),{items:state.games.filter(g=>g.game_date===today)},2200),
+  jfetch(query('/api/games',{division:world,since:today,until:isoOffset(10)}),state.games.filter(g=>g.game_date>=today&&g.game_date<=isoOffset(10)),2200)
  ]);
  if(state.activeWorld!==world||state.loadToken!==token)return;
  state.news=Array.isArray(apiNews)?apiNews:[];
@@ -163,17 +211,13 @@ async function loadWorld(world){
  mergeGames(Array.isArray(scoreboard)?scoreboard:[]);
  dedupeStateGames();
  state.gameConference='all';state.gameSchool='all';state.predConference='all';state.predSchool='all';state.predPage=1;
+ cacheDashboardWorld(world);
  renderAll();
- loadProspects();
- // Fill missing verified player details in the background for every school.
- // The server de-duplicates jobs, so re-check coverage on every world load rather
- // than suppressing later fixes with an old sessionStorage flag.
- setTimeout(()=>ensurePlayerStatsSync(false),900);
- // Network refreshes happen after the cached dashboard is already visible.
- setTimeout(()=>refreshScoreboardPreview(true),80);
- setTimeout(()=>refreshNewsLive(true,false),140);
- setTimeout(()=>refreshUpcomingGamesFast(true),220);
- setTimeout(()=>prefetchGameStrip(today),320);
+ loadProspects().then(()=>cacheDashboardWorld(world));
+ // Keep startup interaction-first. The prepared SQLite cache already contains
+ // schedule/results/news/leaderboards. Large roster reads and all public-source
+ // refreshes happen only when the user opens the relevant page or presses a
+ // Refresh/Sync control. This prevents background work from making every button lag.
 }
 function seedDefaultLineup(){const s=ws();s.seeded=true;save()}
 function marketEntityPool(){
@@ -231,7 +275,7 @@ function renderProspects(){
  const items=state.prospects||[];
  wrap.innerHTML=items.slice(0,5).map((p,i)=>`<div class="prospect-row"><span class="prospect-rank">${i+1}</span><div><b>${p.name}</b><small>${p.school}${p.conference?' · '+p.conference:''}</small></div><strong>${p.rating||p.overall||'—'}</strong></div>`).join('')||'<div class="fine">Promising players are loading…</div>';
 }
-async function loadProspects(){const w=state.activeWorld;const items=await jfetch(query('/api/prospects',{division:w,limit:5}),[],1800);if(state.activeWorld===w&&Array.isArray(items)){state.prospects=items;renderProspects()}}
+async function loadProspects(){const w=state.activeWorld;const items=await jfetch(query('/api/prospects',{division:w,limit:5}),[],1800);if(state.activeWorld===w&&Array.isArray(items)){state.prospects=items;renderProspects();cacheDashboardWorld(w)}}
 function renderNews(){
  const data=(state.news&&state.news.length?state.news:(fallbackNews[state.activeWorld]||[]));const filt=state.newsFilter;const filtered=filt==='all'?data:data.filter(n=>(n.category||'').toLowerCase().includes(filt));const shown=filtered.slice(0,3);
  if(!shown.length){$('#newsMosaic').innerHTML='<div class="data-empty"><b>No stories in this filter yet.</b><br>Use Refresh to check the official source.</div>';return}
@@ -278,11 +322,11 @@ function currentRoundGames(){
  const finals=state.games.filter(isFinal).sort((a,b)=>b.game_date.localeCompare(a.game_date));if(finals.length){const latest=finals[0].game_date;return finals.filter(g=>g.game_date===latest).slice(0,5)}return []
 }
 function renderPickPreview(){const wrap=$('#pickGamesPreview');if(!wrap)return;const games=state.games.filter(scheduled).sort((a,b)=>a.game_date.localeCompare(b.game_date)||(a.start_time||'').localeCompare(b.start_time||'')).slice(0,1);const preds=state.predictions[state.activeWorld]||{};wrap.innerHTML=games.map(g=>{const p=preds[g.id]||{h:'',a:''};return`<div class="pick-game"><small>${g.game_date}${g.start_time?' · '+g.start_time:''} · SCHEDULED</small><div class="pick-row"><span>${g.home_team}</span><input data-prev-home="${g.id}" type="number" min="0" value="${p.h}"><span>×</span><input data-prev-away="${g.id}" type="number" min="0" value="${p.a}"><span>${g.away_team}</span></div></div>`}).join('')||'<div class="fine">Upcoming games are loading from the 2026 schedule.</div>'}
-function renderScores(){const wrap=$('#dashGames');if(!wrap)return;const today=isoToday();const allToday=state.games.filter(g=>g.game_date===today).sort((a,b)=>gameStartMinutes(a.start_time)-gameStartMinutes(b.start_time));const games=[...allToday.filter(isLive),...allToday.filter(g=>!isLive(g))].slice(0,5);wrap.innerHTML=games.map(g=>{const live=isLive(g),final=isFinal(g);const when=live?(g.status||'LIVE'):(g.start_time||'TODAY');return`<button class="dash-score-card ${live?'live-row':''}" data-score-date="${g.game_date}"><div class="dash-score-top"><span>${live?'<b class="live-mini">● LIVE</b>':when}</span><span>${g.start_time||''}</span></div><div class="dash-team-row"><b>${g.home_team}</b><strong>${live||final?(g.home_score??'–'):''}</strong></div><div class="dash-team-row"><b>${g.away_team}</b><strong>${live||final?(g.away_score??'–'):''}</strong></div></button>`}).join('')||'<div class="fine">No verified games are cached for today yet. Live data refreshes in the background.</div>';$$('[data-score-date]').forEach(b=>b.onclick=()=>{state.gameDate=b.dataset.scoreDate;save();show('games');renderGames()})}
-async function refreshScoreboardPreview(force=false){if(!['D1','D2','D3'].includes(state.activeWorld))return;const items=await jfetch(query('/api/scoreboard-preview',{division:state.activeWorld,refresh:force?1:0}),[]);if(Array.isArray(items)&&items.length){mergeGames(items);renderScores();renderPickPreview();if($('.page.active')?.id==='games')renderGames()}}
-async function refreshNewsLive(force=false,notify=false){if(!['D1','D2','D3','NAIA','NJCAA1'].includes(state.activeWorld))return;const items=await jfetch(query('/api/news',{division:state.activeWorld,limit:30,refresh:force?1:0}),[]);if(Array.isArray(items)&&items.length){state.news=items;renderNews();if(notify)toast('Current official news updated.')}}
+function renderScores(){const wrap=$('#dashGames');if(!wrap)return;const today=isoToday();const allToday=state.games.filter(g=>g.game_date===today).sort((a,b)=>gameStartMinutes(a.start_time)-gameStartMinutes(b.start_time));const games=[...allToday.filter(isLive),...allToday.filter(g=>!isLive(g))].slice(0,5);wrap.innerHTML=games.map(g=>{const live=isLive(g),final=isFinal(g),hasScore=g.home_score!=null&&g.away_score!=null,scoreVisible=live||final||hasScore;const when=live?(g.status||'LIVE'):(final||hasScore?'FINAL':(g.start_time||'TODAY'));return`<button class="dash-score-card ${live?'live-row':''}" data-score-date="${g.game_date}"><div class="dash-score-top"><span>${live?'<b class="live-mini">● LIVE</b>':when}</span><span>${g.start_time||''}</span></div><div class="dash-team-row"><b>${g.home_team}</b><strong>${scoreVisible?(g.home_score??'–'):''}</strong></div><div class="dash-team-row"><b>${g.away_team}</b><strong>${scoreVisible?(g.away_score??'–'):''}</strong></div></button>`}).join('')||'<div class="fine">No verified games are cached for today yet. Live data refreshes in the background.</div>';$$('[data-score-date]').forEach(b=>b.onclick=()=>{state.gameDate=b.dataset.scoreDate;save();show('games');renderGames()})}
+async function refreshScoreboardPreview(force=false){if(!['D1','D2','D3'].includes(state.activeWorld))return;const w=state.activeWorld;const items=await jfetch(query('/api/scoreboard-preview',{division:w,refresh:force?1:0}),[]);if(state.activeWorld!==w)return;if(Array.isArray(items)&&items.length){replaceGameDate(isoToday(),items);renderScores();renderPickPreview();cacheDashboardWorld(w);if($('.page.active')?.id==='games')renderGames()}}
+async function refreshNewsLive(force=false,notify=false){if(!['D1','D2','D3','NAIA','NJCAA1'].includes(state.activeWorld))return;const w=state.activeWorld;const items=await jfetch(query('/api/news',{division:w,limit:30,refresh:force?1:0}),[]);if(state.activeWorld!==w)return;if(Array.isArray(items)&&items.length){state.news=items;renderNews();cacheDashboardWorld(w);if(notify)toast('Current official news updated.')}}
 async function reloadGamesOnly(){const since=isoOffset(-7),until=isoOffset(45);const [games,cov,filters]=await Promise.all([jfetch(query('/api/games',{division:state.activeWorld,since,until}),[]),jfetch(query('/api/game-coverage',{division:state.activeWorld}),state.gameCoverage||{}),jfetch(query('/api/filters',{division:state.activeWorld}),{conferences:[],schools:[],teams:[]})]);if(Array.isArray(games))state.games=games;state.gameCoverage=cov;if(filters){state.teamRows=filters.teams||state.teamRows;state.filters={conferences:filters.conferences||[],schools:filters.schools||[]}}buildFilters();if($('.page.active')?.id==='dashboard')renderDashboard();if($('.page.active')?.id==='games')renderGames();if($('.page.active')?.id==='market')renderMarket();if($('#predictionRows')){predictionFilterOptions();renderPredictionRows()}}
-async function refreshUpcomingGamesFast(force=false){const w=state.activeWorld;if(!['D1','D2','D3'].includes(w))return;const payload=await jfetch(query('/api/upcoming-games',{division:w,days:45,refresh:force?1:0}),null);if(state.activeWorld!==w||!payload)return;const games=Array.isArray(payload.games)?payload.games:[];if(games.length){mergeGames(games);renderScores();renderPickPreview();if($('.page.active')?.id==='market')renderMarket();if($('.page.active')?.id==='team')renderTeam();if($('.page.active')?.id==='games')renderGames()}}
+async function refreshUpcomingGamesFast(force=false){const w=state.activeWorld;if(!['D1','D2','D3'].includes(w))return;const payload=await jfetch(query('/api/upcoming-games',{division:w,days:45,refresh:force?1:0}),null);if(state.activeWorld!==w||!payload)return;const games=Array.isArray(payload.games)?payload.games:[];if(games.length){mergeGames(games);renderScores();renderPickPreview();cacheDashboardWorld(w);if($('.page.active')?.id==='market')renderMarket();if($('.page.active')?.id==='team')renderTeam();if($('.page.active')?.id==='games')renderGames()}}
 async function ensureSeasonGames(){return false;}
 function predictionFilterOptions(){
  const confSel=$('#predConference'),schoolSel=$('#predSchool');if(!confSel||!schoolSel)return;
@@ -305,7 +349,7 @@ function openPredictions(){
  $('#savePredModal').onclick=()=>{capturePredictionInputs();closeModal();renderPickPreview();toast('Predictions saved.')}
 }
 function savePreview(){state.predictions[state.activeWorld]=state.predictions[state.activeWorld]||{};$$('[data-prev-home]').forEach(h=>{const id=h.dataset.prevHome,a=$(`[data-prev-away="${id}"]`);state.predictions[state.activeWorld][id]={h:h.value,a:a.value}});save();toast(tr('savePredictions'))}
-function renderWorldTabs(){$('#lineupWorldTabs').innerHTML=worldOrder.map(w=>`<button class="world-tab ${w===state.activeWorld?'active':''}" data-lineup-world="${w}">${worlds[w].label}<small>${money(worlds[w].budget)}</small></button>`).join('');$$('[data-lineup-world]').forEach(b=>b.onclick=()=>loadWorld(b.dataset.lineupWorld).then(()=>show('team')))}
+function renderWorldTabs(){$('#lineupWorldTabs').innerHTML=worldOrder.map(w=>`<button class="world-tab ${w===state.activeWorld?'active':''}" data-lineup-world="${w}">${worlds[w].label}<small>${money(worlds[w].budget)}</small></button>`).join('');$$('[data-lineup-world]').forEach(b=>b.onclick=()=>{show('team');loadWorld(b.dataset.lineupWorld).then(()=>{if($('.page.active')?.id==='team')renderTeam()})})}
 function formationSlots(form){const counts=formations[form];const slots=[];Object.entries(counts).forEach(([p,n])=>{for(let i=0;i<n;i++)slots.push({pos:p,index:i})});return slots}
 function getStarterByPos(pos,index){const ids=ws().lineup.starters;const players=ids.map(id=>state.players.find(p=>p.id===id)).filter(Boolean).filter(p=>p.position===pos);return players[index]||null}
 function pitchCoords(form){
@@ -333,18 +377,24 @@ function removeCoach(id){const l=ws().lineup;if(l.HC===id)l.HC=null;if(l.AC===id
 function marketEntity(){return $('#filterEntity')?.value||'players'}
 function positionName(pos){return {GK:'Goalkeeper',DF:'Defender',MF:'Midfielder',FW:'Forward'}[pos]||'Player'}
 function valuationDelta(p){const id=Number(String(p.id||'').replace(/\D/g,''))||0;const perf=(Number(p.goals||0)*.08)+(Number(p.assists||0)*.05)+(Number(p.minutes||0)>500?.18:0);const swing=(((id*37)%13)-6)/10;return Math.max(-0.9,Math.min(1.2,Number((swing+perf).toFixed(1))))}
-function openMarketFor(entity='players',position='all',bench=false){state.marketContext={type:entity,position,bench};state.marketVisibleCount=60;if($('#filterEntity'))$('#filterEntity').value=entity;if($('#filterPos'))$('#filterPos').value=entity==='players'?position:'all';refreshMarketDependentFilters();show('market');renderMarket()}
+function openMarketFor(entity='players',position='all',bench=false){state.marketContext={type:entity,position,bench};state.marketVisibleCount=60;if($('#filterEntity'))$('#filterEntity').value=entity;if($('#filterPos'))$('#filterPos').value=entity==='players'?position:'all';show('market');refreshMarketDependentFilters();renderMarket();setTimeout(()=>ensureMarketData(entity,entity==='players'?position:'all'),0)}
 function renderMiniLineup(){const wrap=$('#miniPitchSlots');if(!wrap)return;const s=ws(),coords=pitchCoords(s.formation);let html='';for(const pos of ['FW','MF','DF','GK'])coords[pos].forEach((xy,i)=>{const p=getStarterByPos(pos,i);const focus=state.marketContext?.position===pos&&!p;html+=`<button class="mini-slot ${focus?'focus':''}" style="left:${xy.x}%;top:${xy.y}%" data-mini-pos="${pos}"><span>${p?p.name.split(' ').slice(-1)[0]:pos}</span></button>`});wrap.innerHTML=html;$('#miniLineupTitle').textContent=s.formation;const hc=state.coaches.find(c=>c.id===s.lineup.HC),ac=state.coaches.find(c=>c.id===s.lineup.AC);$('#miniCoachSlots').innerHTML=`<span>HC ${hc?hc.name.split(' ').slice(-1)[0]:'+'}</span><span>AC ${ac?ac.name.split(' ').slice(-1)[0]:'+'}</span>`;$$('[data-mini-pos]').forEach(b=>b.onclick=()=>openMarketFor('players',b.dataset.miniPos,false))}
 function renderMarket(){
  renderWorldSelectors();renderMiniLineup();if($('#marketEyebrow'))$('#marketEyebrow').textContent=`${worlds[state.activeWorld].label} · 2026`;if($('#budgetLabel'))$('#budgetLabel').textContent=available().toFixed(1);if($('#boostBudgetHint'))$('#boostBudgetHint').textContent=`+${Number(ws().boost||0).toFixed(1)}M boost`;
  const entity=marketEntity(),pos=$('#filterPos').value,conf=$('#filterConf').value,school=$('#filterSchool').value,cls=$('#filterClass').value,q=$('#filterSearch').value.trim().toLowerCase(),sort=$('#filterSort').value;
  const title=entity==='players'?(pos==='all'?'Select a Player':`Select a ${positionName(pos)}`):`Select ${entity==='Head Coach'?'a Head Coach':'an Assistant Coach'}`;if($('#marketTitleDynamic'))$('#marketTitleDynamic').textContent=title;if($('#marketSubtitleDynamic'))$('#marketSubtitleDynamic').textContent=state.marketContext?.bench?'Choose an eligible reserve for your bench.':'Choose an option to add to your lineup.';
+ if(entity==='players'&&!state.rosterLoaded&&state.players.length===0){
+  if($('#marketCount'))$('#marketCount').textContent='Loading player roster…';
+  $('#marketGrid').innerHTML='<div class="data-loading"><b>Loading players…</b><br>The roster is being read from the local verified database.</div>';
+  ensureRosterLoaded().then(()=>{if($('.page.active')?.id==='market')renderMarket()});
+  return;
+ }
  let data=entity==='players'?state.players:state.coaches.filter(c=>entity==='Head Coach'?c.role==='Head Coach':c.role!=='Head Coach');
  data=data.filter(x=>(entity!=='players'||pos==='all'||x.position===pos)&&(conf==='all'||x.conference===conf)&&(school==='all'||x.school===school)&&(cls==='all'||entity!=='players'||classNorm(x.class_year)===cls)&&(!q||(x.name+' '+x.school).toLowerCase().includes(q)));
  data.sort((a,b)=>sort==='price_asc'?a.price-b.price:sort==='price_desc'?b.price-a.price:sort==='minutes'?(b.minutes||0)-(a.minutes||0):displayOverall(b)-displayOverall(a));
  const total=data.length,limit=Math.max(60,Number(state.marketVisibleCount||60)),shown=data.slice(0,limit);const cov=state.statsCoverage;const covText=entity==='players'&&cov?` · verified stats ${cov.players_with_verified_stats||0}/${cov.players||state.players.length}${cov.running?' · syncing…':''}`:'';
  if($('#marketCount'))$('#marketCount').textContent=`Showing ${shown.length} of ${total} ${entity==='players'?'players':'coaches'}${covText}`;
- let html=shown.map(x=>entity==='players'?playerCard(x):coachCard(x)).join('');if(!html)html='<div class="data-empty"><b>No matching records.</b><br>Change the filters or refresh official data.</div>';if(total>shown.length)html+=`<div class="market-load-more"><button id="marketLoadMore" class="btn btn-soft">LOAD ${Math.min(60,total-shown.length)} MORE</button><span>${total-shown.length} remaining</span></div>`;$('#marketGrid').innerHTML=html;
+ let html=shown.map(x=>entity==='players'?playerCard(x):coachCard(x)).join('');if(!html)html=state.marketLoading?'<div class="data-empty"><b>Loading available players…</b><br>The market is opening without blocking the rest of the app.</div>':'<div class="data-empty"><b>No matching records.</b><br>Change the filters or refresh official data.</div>';if(total>shown.length)html+=`<div class="market-load-more"><button id="marketLoadMore" class="btn btn-soft">LOAD ${Math.min(60,total-shown.length)} MORE</button><span>${total-shown.length} remaining</span></div>`;$('#marketGrid').innerHTML=html;
  $$('[data-add-player]').forEach(b=>b.onclick=e=>{e.stopPropagation();addPlayer(b.dataset.addPlayer)});$$('[data-remove-player]').forEach(b=>b.onclick=e=>{e.stopPropagation();removePlayer(b.dataset.removePlayer)});$$('[data-add-coach]').forEach(b=>b.onclick=e=>{e.stopPropagation();addCoach(b.dataset.addCoach)});$$('[data-remove-coach]').forEach(b=>b.onclick=e=>{e.stopPropagation();removeCoach(b.dataset.removeCoach)});$$('[data-player-details]').forEach(b=>b.onclick=()=>openPlayerDetails(b.dataset.playerDetails));const more=$('#marketLoadMore');if(more)more.onclick=()=>{state.marketVisibleCount=limit+60;renderMarket()}
 }
 function avatarHtml(p){const initials=(p.name||'?').split(/\s+/).filter(Boolean).map(x=>x[0]).slice(0,2).join('').toUpperCase();return `<div class="player-avatar standardized-avatar">${initials}</div>`}
@@ -462,7 +512,7 @@ function renderQuickStats(data,cat){let stats;if(cat==='scorers'){stats=[[data.l
 function renderConferenceLeaders(){const players=rankData(state.rankingWorld,'scorers','all');const agg={};players.filter(p=>Number(p.goals)>0&&p.conference).forEach(p=>agg[p.conference]=(agg[p.conference]||0)+Number(p.goals));$('#conferenceLeaders').innerHTML=Object.entries(agg).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([c,v])=>`<div class="conf-leader"><span>${c}</span><b>${v}</b></div>`).join('')||'<div class="fine">No verified conference totals loaded.</div>'}
 
 function toggleWorldParticipation(world){state.participation[world]=!state.participation[world];save();renderDashboard();renderCompetitions();toast(state.participation[world]?`${worlds[world].label}: joined.`:`${worlds[world].label}: left. Your saved lineup stays available if you rejoin.`)}
-function renderCompetitions(){$('#myLeagues').innerHTML=state.leagues.map((l,i)=>`<article class="panel league-card"><div class="eyebrow">${worlds[l.world].label}</div><h3>${l.name}</h3><p>${l.members} managers · private fantasy league</p><div class="league-rank"><span>Your rank</span><b>#${l.rank}</b></div></article>`).join('');$('#worldCards').innerHTML=worldOrder.map(w=>`<div class="world-card ${state.participation[w]?'active':''}"><div class="eyebrow">${worlds[w].label}</div><h3>${money(worlds[w].budget)}</h3><p>Independent budget, lineup, boosts, scoring and leagues.</p><button class="btn ${state.participation[w]?'btn-soft':'btn-primary'} btn-full" data-world-play="${w}">${state.participation[w]?'LEAVE WORLD':'JOIN WORLD'}</button></div>`).join('');$$('[data-world-play]').forEach(b=>b.onclick=()=>toggleWorldParticipation(b.dataset.worldPlay))}
+function renderCompetitions(){$('#myLeagues').innerHTML=state.leagues.map((l,i)=>`<article class="panel league-card"><div class="eyebrow">${worlds[l.world].label}</div><h3>${l.name}</h3><p>${l.members} managers · private fantasy league</p><div class="league-rank"><span>Your rank</span><b>#${l.rank}</b></div><div class="league-actions"><button class="leave-league-btn" data-leave-league="${i}">LEAVE LEAGUE</button></div></article>`).join('');$('#worldCards').innerHTML=worldOrder.map(w=>`<div class="world-card ${state.participation[w]?'active':''}"><div class="eyebrow">${worlds[w].label}</div><h3>${money(worlds[w].budget)}</h3><p>Independent budget, lineup, boosts, scoring and leagues.</p><button class="btn ${state.participation[w]?'btn-soft':'btn-primary'} btn-full" data-world-play="${w}">${state.participation[w]?'LEAVE WORLD':'JOIN WORLD'}</button></div>`).join('');$$('[data-world-play]').forEach(b=>b.onclick=()=>toggleWorldParticipation(b.dataset.worldPlay));$$('[data-leave-league]').forEach(b=>b.onclick=()=>{const i=Number(b.dataset.leaveLeague);const league=state.leagues[i];if(!league)return;state.leagues.splice(i,1);save();renderCompetitions();toast(`Left ${league.name}.`)})}
 
 function buildGameFilterOptions(){
  const conf=$('#gamesConference'),school=$('#gamesSchool');if(!conf||!school)return;
@@ -474,28 +524,15 @@ function parseIsoLocal(iso){const [y,m,d]=String(iso).split('-').map(Number);ret
 function isoFromDate(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function dateLong(iso){try{return new Intl.DateTimeFormat(state.lang==='pt'?'pt-BR':state.lang==='es'?'es-ES':'en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'}).format(parseIsoLocal(iso))}catch(e){return iso}}
 function renderDateStrip(){const wrap=$('#gamesDateStrip');if(!wrap)return;const center=parseIsoLocal(state.gameDate||isoToday());const days=[];for(let i=-3;i<=3;i++){const d=new Date(center);d.setDate(center.getDate()+i);const iso=isoFromDate(d);days.push(`<button class="date-chip ${iso===state.gameDate?'active':''}" data-game-date="${iso}"><small>${new Intl.DateTimeFormat(state.lang==='pt'?'pt-BR':state.lang==='es'?'es-ES':'en-US',{weekday:'short'}).format(d).replace('.','')}</small><b>${d.getDate()}</b></button>`)}wrap.innerHTML=days.join('');$$('[data-game-date]').forEach(b=>b.onclick=()=>setGameDate(b.dataset.gameDate))}
-async function setGameDate(date){
+function setGameDate(date){
  state.gameDate=date||isoToday();save();
- // Paint instantly from cache/prefetch, then request only the selected day.
+ // Date buttons are local-first: change the screen immediately, then read only
+ // that date from SQLite. No automatic NCAA request and no seven-day prefetch.
  renderGames();
- await syncSelectedGameDate(state.gameDate);
- renderGames();
- const cachedDay=state.games.filter(g=>g.game_date===state.gameDate);
- const hasDay=cachedDay.length>0;
- // A single future school-schedule row is not enough to represent an NCAA D1
- // calendar date. Treat that cache as incomplete and wait for the exact-date
- // NCAA refresh so all schools on the date appear together.
- const incompleteFuture=state.gameDate>isoToday()&&cachedDay.length<=1&&['D1','D2','D3'].includes(state.activeWorld);
- if(!hasDay||incompleteFuture){
-   const box=$('#gamesList');
-   if(box)box.innerHTML='<div class="data-empty loading-date"><b>Loading the official schedule for this date…</b><br>This request checks only the selected day.</div>';
-   await refreshSelectedGameDate(state.gameDate,true);
- }else{
-   refreshSelectedGameDate(state.gameDate,false);
- }
- // Prefetch the visible neighboring dates so the next click is usually instant.
- prefetchGameStrip(state.gameDate);
+ const requested=state.gameDate;
+ setTimeout(()=>syncSelectedGameDate(requested).then(()=>{if(state.gameDate===requested&&$('.page.active')?.id==='games')renderGames()}),0);
 }
+
 function gameStartMinutes(value){
  const text=String(value||'').trim();
  let m=text.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
@@ -503,7 +540,7 @@ function gameStartMinutes(value){
  m=text.match(/^(\d{1,2}):(\d{2})$/);if(m)return Number(m[1])*60+Number(m[2]);
  return 9999;
 }
-function gameCardHtml(g){const live=isLive(g),final=isFinal(g);const status=live?(g.status||'LIVE'):final?'FINAL':(g.start_time||'SCHEDULED');const h=g.home_score??'–',a=g.away_score??'–';const scoreVisible=live||final;return`<article class="ncaa-game-card ${live?'live-game':''}"><div class="ncaa-game-top"><span class="game-time ${live?'live-text':''}">${status}</span>${g.source_url?`<a href="${g.source_url}" target="_blank" rel="noreferrer">NCAA ↗</a>`:''}</div><div class="ncaa-team-row"><span class="team-mark">${(g.away_team||'?').slice(0,2).toUpperCase()}</span><b>${g.away_team}</b><strong>${scoreVisible?a:' '}</strong></div><div class="ncaa-team-row"><span class="team-mark">${(g.home_team||'?').slice(0,2).toUpperCase()}</span><b>${g.home_team}</b><strong>${scoreVisible?h:' '}</strong></div></article>`}
+function gameCardHtml(g){const live=isLive(g),final=isFinal(g),hasScore=g.home_score!=null&&g.away_score!=null,past=String(g.game_date||'')<isoToday();const status=live?(g.status||'LIVE'):(final||(hasScore&&past))?'FINAL':(g.start_time||'SCHEDULED');const h=g.home_score??'–',a=g.away_score??'–';const scoreVisible=live||final||hasScore;return`<article class="ncaa-game-card ${live?'live-game':''}"><div class="ncaa-game-top"><span class="game-time ${live?'live-text':''}">${status}</span>${g.source_url?`<a href="${g.source_url}" target="_blank" rel="noreferrer">NCAA ↗</a>`:''}</div><div class="ncaa-team-row"><span class="team-mark">${(g.away_team||'?').slice(0,2).toUpperCase()}</span><b>${g.away_team}</b><strong>${scoreVisible?a:' '}</strong></div><div class="ncaa-team-row"><span class="team-mark">${(g.home_team||'?').slice(0,2).toUpperCase()}</span><b>${g.home_team}</b><strong>${scoreVisible?h:' '}</strong></div></article>`}
 function renderGames(){
  const worldTag=$('#gamesWorldEyebrow');if(worldTag)worldTag.textContent=`${worlds[state.activeWorld].label} · 2026`;if($('#gamesOfficialSource'))$('#gamesOfficialSource').href=worlds[state.activeWorld].source;
  buildGameFilterOptions();renderDateStrip();const f=state.gameFilter;const conf=state.gameConference||'all',school=state.gameSchool||'all',date=state.gameDate||isoToday();let data=state.games.filter(g=>g.game_date===date&&gameMatches(g,conf,school)&&(f==='all'||f==='live'&&isLive(g)||f==='scheduled'&&scheduled(g)||f==='finished'&&isFinal(g)));
@@ -539,7 +576,7 @@ async function prefetchGameStrip(centerIso){
  // prioritized because managers are most likely to click forward in the schedule.
  const reads=dates.map(d=>jfetch(query('/api/games-date',{division:state.activeWorld,date:d}),{items:[]},1600).then(p=>({d,items:p?.items||[]})));
  const results=await Promise.all(reads);
- const missing=[];results.forEach(r=>{replaceGameDate(r.d,r.items);const incompleteFuture=r.d>isoToday()&&['D1','D2','D3'].includes(state.activeWorld)&&r.items.length<=1;if(!r.items.length||incompleteFuture)missing.push(r.d)});
+ const missing=[];results.forEach(r=>{replaceGameDate(r.d,r.items);if(!r.items.length)missing.push(r.d)});
  if($('.page.active')?.id==='games')renderGames();renderScores();
  // Warm all missing dates shown in the seven-day strip. Each call refreshes one
  // date only; spacing keeps us comfortably below public-source rate limits.
@@ -582,20 +619,56 @@ async function refreshRankingData(){
 function bind(){
  document.addEventListener('click',e=>{const j=e.target.closest('[data-jump]');if(j){show(j.dataset.jump)}});
  $$('[data-lang]').forEach(b=>b.onclick=()=>{state.lang=b.dataset.lang;save();applyLang();renderAll()});$$('[data-login-lang]').forEach(b=>{b.type='button';b.onclick=()=>{state.lang=b.dataset.loginLang;save();applyLang()}});
- const doLogin=async e=>{if(e)e.preventDefault();const email=$('#loginEmail').value.trim(),pass=$('#loginPassword').value;if(!email||!pass){toast('Enter an email and password.');return}sessionStorage.setItem('college_fantasy_v1_authenticated','1');$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(true);await loadWorld(state.activeWorld);boot(false)};
+ const doLogin=e=>{if(e)e.preventDefault();const email=$('#loginEmail').value.trim(),pass=$('#loginPassword').value;if(!email||!pass){toast('Enter an email and password.');return}sessionStorage.setItem('college_fantasy_v1_authenticated','1');$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(false);loadWorld(state.activeWorld)};
  $('#loginForm')?.addEventListener('submit',doLogin);if($('#enterApp'))$('#enterApp').type='submit';
  if($('#togglePassword'))$('#togglePassword').onclick=()=>{const i=$('#loginPassword');const show=i.type==='password';i.type=show?'text':'password';$('#togglePassword').textContent=show?'Hide':'Show'};
  if($('#demoLogin'))$('#demoLogin').onclick=()=>doLogin();
  if($('#forgotPassword'))$('#forgotPassword').onclick=()=>openModal(`<div class="eyebrow">ACCOUNT ACCESS</div><h2>Reset password</h2><p>Enter your email. In the production handoff this connects to the authentication provider.</p><input id="resetEmail" class="modal-input" type="email" value="${$('#loginEmail')?.value||''}" placeholder="Email"><button id="sendResetBtn" class="btn btn-primary btn-full">SEND RESET LINK</button>`);
  if($('#createAccountLogin'))$('#createAccountLogin').onclick=()=>openModal(`<div class="eyebrow">NEW MANAGER</div><h2>Create your fantasy profile</h2><div class="profile-edit-grid"><label>Team name<input id="signupTeam" value="Campus Eleven F.C."></label><label>Manager handle<input id="signupHandle" value="manager"></label></div><input id="signupEmail" class="modal-input" type="email" placeholder="Email"><input id="signupPassword" class="modal-input" type="password" placeholder="Password"><button id="signupBtn" class="btn btn-primary btn-full">CREATE & ENTER</button>`);
-if($('#worldSelector'))$('#worldSelector').onchange=e=>loadWorld(e.target.value).then(()=>show('dashboard'));if($('#filterDivision'))$('#filterDivision').onchange=e=>{state.marketVisibleCount=60;['filterPos','filterConf','filterSchool','filterClass'].forEach(id=>{const el=$('#'+id);if(el)el.value='all'});loadWorld(e.target.value).then(()=>{refreshMarketDependentFilters();show('market')})};
- if($('#filterEntity'))$('#filterEntity').onchange=()=>{state.marketVisibleCount=60;$('#filterPos').value='all';$('#filterClass').value='all';state.marketContext={type:$('#filterEntity').value,position:'all',bench:false};refreshMarketDependentFilters('entity');renderMarket()};if($('#filterPos'))$('#filterPos').onchange=()=>{state.marketVisibleCount=60;state.marketContext.position=$('#filterPos').value;refreshMarketDependentFilters('position');renderMarket()};if($('#filterClass'))$('#filterClass').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('class');renderMarket()};if($('#filterConf'))$('#filterConf').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('conf');renderMarket()};if($('#filterSchool'))$('#filterSchool').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('school');renderMarket()};if($('#filterSort'))$('#filterSort').onchange=()=>{state.marketVisibleCount=60;renderMarket()};if($('#filterSearch'))$('#filterSearch').oninput=()=>{state.marketVisibleCount=60;renderMarket()};
+// The header division selector is GLOBAL: it works from Dashboard, Lineup,
+ // Market, Rankings, Competitions and Games & Results without forcing a page change.
+ // Keep the currently visible page on screen while the selected division hydrates.
+ document.addEventListener('change',e=>{
+  const el=e.target;
+  if(!el||el.id!=='worldSelector')return;
+  const next=el.value;
+  if(!worldOrder.includes(next)||next===state.activeWorld)return;
+  const currentPage=$('.page.active')?.id||'dashboard';
+  // Rankings has its own world state; keep it aligned with the global selector.
+  if(currentPage==='rankings')state.rankingWorld=next;
+  // Market also has a local division select; mirror the header immediately.
+  const marketDivision=$('#filterDivision');
+  if(marketDivision)marketDivision.value=next;
+  // Switch the active world without navigating away from the current page.
+  // loadWorld() paints cached/local content first and keeps the page active.
+  void loadWorld(next).then(()=>{
+   if($('.page.active')?.id!==currentPage)return;
+   if(currentPage==='rankings'){
+    state.rankingWorld=next;
+    renderRankingConferenceOptions();
+    renderRankings();
+   }else if(currentPage==='market'){
+    refreshMarketDependentFilters();
+    renderMarket();
+   }else if(currentPage==='team'){
+    renderTeam();
+   }else if(currentPage==='games'){
+    renderGames();
+   }else if(currentPage==='competitions'){
+    renderCompetitions();
+   }else{
+    renderDashboard();
+   }
+  });
+ });
+ if($('#filterDivision'))$('#filterDivision').onchange=e=>{state.marketVisibleCount=60;['filterPos','filterConf','filterSchool','filterClass'].forEach(id=>{const el=$('#'+id);if(el)el.value='all'});show('market');loadWorld(e.target.value).then(()=>{refreshMarketDependentFilters();if($('.page.active')?.id==='market')renderMarket()})};
+ if($('#filterEntity'))$('#filterEntity').onchange=()=>{state.marketVisibleCount=60;$('#filterPos').value='all';$('#filterClass').value='all';state.marketContext={type:$('#filterEntity').value,position:'all',bench:false};refreshMarketDependentFilters('entity');renderMarket();setTimeout(()=>ensureMarketData($('#filterEntity').value,'all'),0)};if($('#filterPos'))$('#filterPos').onchange=()=>{state.marketVisibleCount=60;state.marketContext.position=$('#filterPos').value;refreshMarketDependentFilters('position');renderMarket();if(($('#filterEntity')?.value||'players')==='players')setTimeout(()=>ensureMarketData('players',$('#filterPos').value),0)};if($('#filterClass'))$('#filterClass').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('class');renderMarket()};if($('#filterConf'))$('#filterConf').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('conf');renderMarket()};if($('#filterSchool'))$('#filterSchool').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('school');renderMarket()};if($('#filterSort'))$('#filterSort').onchange=()=>{state.marketVisibleCount=60;renderMarket()};if($('#filterSearch'))$('#filterSearch').oninput=()=>{state.marketVisibleCount=60;renderMarket()};
  if($('#clearFilters'))$('#clearFilters').onclick=()=>{state.marketVisibleCount=60;$('#filterEntity').value='players';$('#filterPos').value=state.marketContext?.position||'all';$('#filterConf').value='all';$('#filterSchool').value='all';$('#filterClass').value='all';$('#filterSort').value='rating_desc';$('#filterSearch').value='';refreshMarketDependentFilters();renderMarket()};if($('#howScoring'))$('#howScoring').onclick=showScoring;if($('#confirmTeam'))$('#confirmTeam').onclick=()=>toast($('#confirmTeam').disabled?'Complete 11 starters + Head Coach + Assistant Coach first.':'Lineup confirmed for this world.');if($('#stadiumViewBtn'))$('#stadiumViewBtn').onclick=()=>toast('College field view is active.');if($('#openAnyMarket'))$('#openAnyMarket').onclick=()=>openMarketFor('players','all',false);if($('#backToLineup'))$('#backToLineup').onclick=()=>show('team');
  if($('#browsePredictions'))$('#browsePredictions').onclick=openPredictions;if($('#savePreviewPredictions'))$('#savePreviewPredictions').onclick=savePreview;if($('#viewAllResults'))$('#viewAllResults').onclick=()=>{state.gameFilter='all';state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#seeAllScores'))$('#seeAllScores').onclick=()=>{state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#gamesThisRound'))$('#gamesThisRound').onclick=()=>{state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#lineupReminder'))$('#lineupReminder').onclick=()=>{const on=sessionStorage.getItem('college_fantasy_v1_lineup_reminder')==='1';sessionStorage.setItem('college_fantasy_v1_lineup_reminder',on?'0':'1');$('#lineupReminder').textContent=on?'🔔 LINEUP REMINDER':'✓ REMINDER SET';toast(on?'Lineup reminder removed.':'Lineup reminder set for this session.');};if($('#marketSync'))$('#marketSync').onclick=syncNow;if($('#refreshNews'))$('#refreshNews').onclick=()=>refreshNewsLive(true,true);if($('#quickCreateLeague'))$('#quickCreateLeague').onclick=()=>show('competitions');
  $$('.news-tabs [data-news-filter]').forEach(b=>b.onclick=()=>{$$('.news-tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.newsFilter=b.dataset.newsFilter;renderNews()});$$('.ranking-tabs [data-ranking-cat]').forEach(b=>b.onclick=()=>{state.rankingCat=b.dataset.rankingCat;state.rankingPage=1;$$('.ranking-tabs button').forEach(x=>x.classList.toggle('active',x===b));renderRankings()});$$('[data-ranking-cat-jump]').forEach(b=>b.onclick=()=>{state.rankingCat=b.dataset.rankingCatJump;state.rankingPage=1;$$('.ranking-tabs button').forEach(x=>x.classList.toggle('active',x.dataset.rankingCat===state.rankingCat));renderRankings()});
  if($('#rankingWorld'))$('#rankingWorld').onchange=e=>{state.rankingWorld=e.target.value;state.rankingPage=1;delete state.rankingConferences[state.rankingWorld];renderRankingConferenceOptions();renderRankings()};if($('#standingConf'))$('#standingConf').onchange=()=>{state.rankingPage=1;renderRankings()};if($('#rankingRefresh'))$('#rankingRefresh').onclick=refreshRankingData;$$('.game-tabs button[data-game-filter]').forEach(b=>b.onclick=()=>{state.gameFilter=b.dataset.gameFilter;renderGames()});if($('#openPickemFromGames'))$('#openPickemFromGames').onclick=openPredictions;
  if($('#gamesConference'))$('#gamesConference').onchange=e=>{state.gameConference=e.target.value;state.gameSchool='all';renderGames()};if($('#gamesSchool'))$('#gamesSchool').onchange=e=>{state.gameSchool=e.target.value;const meta=(state.teamRows||[]).find(t=>t.school===state.gameSchool);if(meta?.conference){state.gameConference=meta.conference}renderGames()};if($('#gamesDate'))$('#gamesDate').onchange=e=>setGameDate(e.target.value);if($('#gamesCalendarBtn'))$('#gamesCalendarBtn').onclick=()=>{const el=$('#gamesDate');if(el.showPicker)el.showPicker();else el.focus()};if($('#gamesSync'))$('#gamesSync').onclick=syncGamesOnly;
- if($('#createLeague'))$('#createLeague').onclick=()=>openModal(`<div class="eyebrow">CREATE LEAGUE</div><h2>Create a fantasy league</h2><label>League name<input id="leagueName" class="modal-input" value="New College Soccer Fantasy League"></label><button id="createLeagueSave" class="btn btn-primary btn-full">CREATE</button>`);if($('#joinLeague'))$('#joinLeague').onclick=()=>openModal(`<div class="eyebrow">JOIN LEAGUE</div><h2>Join with a code</h2><input id="leagueCode" class="modal-input" placeholder="League code"><button id="joinLeagueSave" class="btn btn-primary btn-full">JOIN</button>`);document.addEventListener('click',e=>{if(e.target.id==='sendResetBtn'){toast('Reset-link flow is ready for authentication provider integration.');closeModal()}if(e.target.id==='signupBtn'){const team=$('#signupTeam')?.value.trim(),handle=$('#signupHandle')?.value.trim();if(team)state.profile.team=team;if(handle)state.profile.handle=handle.replace(/^@/,'');state.profile.initials=(state.profile.handle.slice(0,2)||'LC').toUpperCase();save();sessionStorage.setItem('college_fantasy_v1_authenticated','1');closeModal();$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(true);loadWorld(state.activeWorld).finally(()=>boot(false));}if(e.target.id==='createLeagueSave'){state.leagues.push({name:$('#leagueName').value||'New League',world:state.activeWorld,members:1,rank:1});save();closeModal();renderCompetitions();toast('League created.')}if(e.target.id==='joinLeagueSave'){state.leagues.push({name:'Joined League',world:state.activeWorld,members:16,rank:16});save();closeModal();renderCompetitions();toast('League joined.')}});$$('[data-action]').forEach(b=>b.onclick=()=>{if(['gamesPredictions','pickem'].includes(b.dataset.action))openPredictions();else if(b.dataset.action==='profile')openProfile();else if(b.dataset.action==='notifications')showNotifications();else toast('No new notifications.')});if($('#menuBtn'))$('#menuBtn').onclick=()=>$('#nav').classList.toggle('nav-open');if($('#modalClose'))$('#modalClose').onclick=closeModal;if($('#modal'))$('#modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
+ if($('#createLeague'))$('#createLeague').onclick=()=>openModal(`<div class="eyebrow">CREATE LEAGUE</div><h2>Create a fantasy league</h2><label>League name<input id="leagueName" class="modal-input" value="New College Soccer Fantasy League"></label><button id="createLeagueSave" class="btn btn-primary btn-full">CREATE</button>`);if($('#joinLeague'))$('#joinLeague').onclick=()=>openModal(`<div class="eyebrow">JOIN LEAGUE</div><h2>Join with a code</h2><input id="leagueCode" class="modal-input" placeholder="League code"><button id="joinLeagueSave" class="btn btn-primary btn-full">JOIN</button>`);document.addEventListener('click',e=>{if(e.target.id==='sendResetBtn'){toast('Reset-link flow is ready for authentication provider integration.');closeModal()}if(e.target.id==='signupBtn'){const team=$('#signupTeam')?.value.trim(),handle=$('#signupHandle')?.value.trim();if(team)state.profile.team=team;if(handle)state.profile.handle=handle.replace(/^@/,'');state.profile.initials=(state.profile.handle.slice(0,2)||'LC').toUpperCase();save();sessionStorage.setItem('college_fantasy_v1_authenticated','1');closeModal();$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(false);loadWorld(state.activeWorld);}if(e.target.id==='createLeagueSave'){state.leagues.push({name:$('#leagueName').value||'New League',world:state.activeWorld,members:1,rank:1});save();closeModal();renderCompetitions();toast('League created.')}if(e.target.id==='joinLeagueSave'){state.leagues.push({name:'Joined League',world:state.activeWorld,members:16,rank:16});save();closeModal();renderCompetitions();toast('League joined.')}});$$('[data-action]').forEach(b=>b.onclick=()=>{if(['gamesPredictions','pickem'].includes(b.dataset.action))openPredictions();else if(b.dataset.action==='profile')openProfile();else if(b.dataset.action==='notifications')showNotifications();else toast('No new notifications.')});if($('#menuBtn'))$('#menuBtn').onclick=()=>$('#nav').classList.toggle('nav-open');if($('#modalClose'))$('#modalClose').onclick=closeModal;if($('#modal'))$('#modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
 }
-async function init(){applyLang();renderWorldSelectors();bind();renderBoost();const auth=sessionStorage.getItem('college_fantasy_v1_authenticated');if(auth){$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(true);await loadWorld(state.activeWorld);boot(false)}else{$('#loginScreen').classList.remove('hidden');$('#appShell').classList.add('hidden');boot(false)}if(!state.refreshTimersStarted){state.refreshTimersStarted=true;setInterval(()=>{if(!$('#appShell').classList.contains('hidden'))refreshScoreboardPreview(true)},180000);setInterval(()=>{if(!$('#appShell').classList.contains('hidden'))refreshNewsLive(true,false)},600000)}}
+function init(){applyLang();renderWorldSelectors();bind();renderBoost();const auth=sessionStorage.getItem('college_fantasy_v1_authenticated');if(auth){$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(false);loadWorld(state.activeWorld)}else{$('#loginScreen').classList.remove('hidden');$('#appShell').classList.add('hidden');boot(false)}state.refreshTimersStarted=true}
 init();

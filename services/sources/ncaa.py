@@ -205,11 +205,15 @@ def fetch_ncaa_rankings(division):
     return {"ok":False,"items":[],"error":"; ".join(errors),"source_url":ncaa_url}
 
 
-def fetch_ncaa_stat_leaders(division, statistic_label, max_pages=10):
+def fetch_ncaa_stat_leaders(division, statistic_label, max_pages=50):
     slug=_division_slug(division)
     if not slug:
         return {"ok":False,"items":[],"error":"NCAA national stats are available here only for D1/D2/D3"}
-    base=f"https://www.ncaa.com/stats/soccer-men/{slug}/current/individual"
+    # The NCAA selector lives on the division stats landing page.  The old
+    # /current/individual route returns 404 unless a statistic id is appended.
+    # Resolve the current statistic URL from the landing page, then paginate the
+    # official leaderboard so every athlete with a published value is cached.
+    base=f"https://www.ncaa.com/stats/soccer-men/{slug}"
     try:
         r=fetch(base); soup=BeautifulSoup(r.text,"lxml"); target=None; wanted=statistic_label.strip().lower()
         for opt in soup.find_all("option"):
@@ -218,6 +222,13 @@ def fetch_ncaa_stat_leaders(division, statistic_label, max_pages=10):
         if not target:
             for a in soup.find_all("a",href=True):
                 if a.get_text(" ",strip=True).lower()==wanted: target=a["href"]; break
+        # Stable NCAA IDs for the two leaderboards used by the evaluation
+        # dashboard.  Keep these only as a fallback in case the selector markup
+        # changes; the live selector remains the primary source of truth.
+        if not target and wanted == "total goals":
+            target=f"/stats/soccer-men/{slug}/current/individual/573"
+        if not target and wanted == "total assists":
+            target=f"/stats/soccer-men/{slug}/current/individual/568"
         if not target:return {"ok":False,"items":[],"error":f"Statistic not found: {statistic_label}"}
         if target.startswith("/"): target="https://www.ncaa.com"+target
         elif not target.startswith("http"): target="https://www.ncaa.com/"+target.lstrip("/")
@@ -930,7 +941,15 @@ def fetch_ncaa_scoreboard_date(division, date_iso):
         errors.append(f'verified snapshot: {exc}')
 
     if zero_seen:
-        return {'ok':True,'items':[],'date':date_iso,'transport':'verified zero after official exact-date transports','source_url':source_url,'warnings':errors,'authoritative':True,'authoritative_zero':True}
+        # An empty past/today scoreboard is meaningful: the date can genuinely
+        # have no games and an exact refresh may clear stale prototype rows.
+        # For FUTURE dates, however, an empty live scoreboard is not proof that
+        # the schedule is empty.  Preserve any cached fixtures and let the
+        # monthly/full-season schedule path fill that date instead.
+        from datetime import date as _date
+        if date_iso <= _date.today().isoformat():
+            return {'ok':True,'items':[],'date':date_iso,'transport':'verified zero after official exact-date transports','source_url':source_url,'warnings':errors,'authoritative':True,'authoritative_zero':True}
+        return {'ok':False,'items':[],'date':date_iso,'error':'; '.join(errors) or 'Future NCAA scoreboard is empty; cached schedule preserved','api_url':api_url,'authoritative':False,'authoritative_zero':False}
     return {'ok':False,'items':[],'date':date_iso,'error':'; '.join(errors) or 'No verified NCAA response','api_url':api_url}
 
 

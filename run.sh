@@ -12,4 +12,7 @@ export HOST="${HOST:-127.0.0.1}"
 export PORT="${PORT:-5012}"
 export FLASK_DEBUG="${FLASK_DEBUG:-0}"
 export PYTHONUNBUFFERED=1
+# The evaluation cache is prepared ahead of time. Keep local navigation responsive
+# instead of starting a full NCAA/player-stat warm crawl on every bash run.sh.
+export CXI_DISABLE_WARM_CACHE="${CXI_DISABLE_WARM_CACHE:-1}"
 python3 app.py

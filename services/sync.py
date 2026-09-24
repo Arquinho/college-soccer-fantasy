@@ -432,8 +432,9 @@ def sync_ncaa_upcoming_games(division, days=10):
     if not result.get('ok'):
         return result
     with db() as conn:
+        resolver=_build_team_resolver(conn,division)
         for g in result.get('items',[]):
-            _upsert_game(conn,g)
+            _upsert_game(conn,g,resolver)
     return result
 
 def sync_ncaa_rankings(division):
@@ -559,47 +560,64 @@ def _team_key(value):
     return re.sub(r'[^a-z0-9]+','',text)
 
 
-def _resolve_team_name(conn, raw_name, division):
-    """Map source labels onto the richest registered school identity.
+def _build_team_resolver(conn, division):
+    """Build a fast in-memory resolver once per bulk game import.
 
-    Exact display-name matches are not automatically trusted: an earlier sync
-    may have created an empty alias row.  When two rows normalize to the same
-    school, prefer the one actually used by the roster/player database.
+    Older builds queried every D-I team and re-counted roster rows for every
+    single game. With a full NCAA season and a 6k-player database that can take
+    minutes. This resolver computes the same preferences once and reuses them.
     """
-    from difflib import SequenceMatcher
-    raw=str(raw_name or '').strip()
-    if not raw:return raw
-    key=_team_key(raw)
     team_cols={r[1] for r in conn.execute("PRAGMA table_info(teams)").fetchall()}
     alias_cols=[c for c in ('abbreviation','ncaa_slug') if c in team_cols]
     select_alias=', '.join(f't.{c}' for c in alias_cols)
     if select_alias: select_alias=', '+select_alias
-    team_rows=conn.execute(f"""SELECT t.school{select_alias},
-        (SELECT COUNT(*) FROM players p
-         WHERE p.division=t.division AND lower(p.school)=lower(t.school)) AS player_count
-        FROM teams t WHERE t.division=?""",(division,)).fetchall()
-
-    # First prefer any row whose canonical/alias key is identical, selecting the
-    # identity with actual roster coverage over an empty alias created by sync.
-    same=[]
-    for t in team_rows:
+    rows=conn.execute(f"""SELECT t.school{select_alias}, COUNT(p.id) AS player_count
+        FROM teams t
+        LEFT JOIN players p ON p.division=t.division AND lower(p.school)=lower(t.school)
+        WHERE t.division=?
+        GROUP BY t.id""",(division,)).fetchall()
+    exact={}
+    candidates=[]
+    for t in rows:
+        item={'school':t['school'],'player_count':int(t['player_count'] or 0)}
         vals=[t['school']]+[t[c] for c in alias_cols]
-        if any(_team_key(v)==key for v in vals if v):
-            same.append(t)
-    if same:
-        same.sort(key=lambda t:(int(t['player_count'] or 0),
-                                1 if str(t['school']).lower()==raw.lower() else 0,
-                                -len(str(t['school']))),reverse=True)
-        return same[0]['school']
+        item['vals']=[v for v in vals if v]
+        candidates.append(item)
+        for v in item['vals']:
+            k=_team_key(v)
+            if not k: continue
+            prev=exact.get(k)
+            if prev is None or item['player_count']>prev['player_count']:
+                exact[k]=item
+    return {'exact':exact,'candidates':candidates}
 
-    # Conservative fuzzy fallback for punctuation/minor spelling deltas only.
+
+def _resolver_add_school(resolver, school):
+    if not resolver or not school:return
+    item={'school':school,'player_count':0,'vals':[school]}
+    resolver['candidates'].append(item)
+    k=_team_key(school)
+    if k and k not in resolver['exact']:
+        resolver['exact'][k]=item
+
+
+def _resolve_team_name(conn, raw_name, division, resolver=None):
+    """Map source labels onto the richest registered school identity."""
+    from difflib import SequenceMatcher
+    raw=str(raw_name or '').strip()
+    if not raw:return raw
+    key=_team_key(raw)
+    resolver=resolver or _build_team_resolver(conn,division)
+    hit=resolver['exact'].get(key)
+    if hit:
+        return hit['school']
+
     best=None;best_score=0.0;best_players=-1
-    for t in team_rows:
-        for cand in [t['school']]+[t[c] for c in alias_cols]:
+    for t in resolver['candidates']:
+        for cand in t['vals']:
             ck=_team_key(cand)
             if not ck or not key:continue
             score=SequenceMatcher(None,ck,key).ratio()
-            # Large length deltas are usually genuinely different institutions.
             if abs(len(ck)-len(key))>=5: score*=.80
             players=int(t['player_count'] or 0)
             if score>best_score or (score==best_score and players>best_players):
@@ -607,12 +625,12 @@ def _resolve_team_name(conn, raw_name, division):
     return best if best_score>=.91 else raw
 
 
-def _upsert_game(conn, g):
+def _upsert_game(conn, g, resolver=None):
     """Insert/refresh a game while collapsing aliases and reversed source order."""
     division = g.get("division") or "D1"
     g=dict(g)
-    g["home_team"]=_resolve_team_name(conn,g.get("home_team"),division)
-    g["away_team"]=_resolve_team_name(conn,g.get("away_team"),division)
+    g["home_team"]=_resolve_team_name(conn,g.get("home_team"),division,resolver)
+    g["away_team"]=_resolve_team_name(conn,g.get("away_team"),division,resolver)
     if not g.get('game_date') or not g.get('home_team') or not g.get('away_team'):
         return None
     if _team_key(g['home_team']) == _team_key(g['away_team']):
@@ -634,6 +652,7 @@ def _upsert_game(conn, g):
         else:
             conn.execute("""INSERT INTO teams(school,conference,division,source_updated_at)
                          VALUES(?,?,?,?)""",(school,conf,division,g.get('source_updated_at')))
+            _resolver_add_school(resolver,school)
 
     existing=None; reversed_order=False
     ext=str(g.get('external_id') or '').strip()
@@ -753,8 +772,11 @@ def sync_ncaa_season_schedule_fast(division, year=2026, recalc=False):
     if not items:
         return result if isinstance(result,dict) else {'ok':False,'items':[],'error':'; '.join(errors)}
     with db() as conn:
-        for g in items:
-            _upsert_game(conn,g)
+        resolver=_build_team_resolver(conn,division)
+        for idx,g in enumerate(items,1):
+            _upsert_game(conn,g,resolver)
+            if len(items)>=100 and (idx % 100 == 0 or idx == len(items)):
+                print(f"       schedule rows {idx}/{len(items)}", flush=True)
     result['ok']=True
     result['stored']=len(items)
     if recalc and result['stored']:
@@ -787,8 +809,9 @@ def sync_ncaa_game_history(division, start_date='2026-08-01', end_date=None, rec
         if replace_day:
             conn.execute("DELETE FROM games WHERE division=? AND game_date=?",
                          (division,start_date))
+        resolver=_build_team_resolver(conn,division)
         for g in items:
-            _upsert_game(conn, g)
+            _upsert_game(conn, g, resolver)
         # Record whether the requested full-season pass completed without transport failures.
         if start_date <= '2026-08-01' and end_date >= '2026-12-31':
             entity = f'games:{division}:2026'
@@ -882,8 +905,12 @@ def sync_registered_school_schedules(division):
                 if used_url and used_url!=schedule_url:
                     conn.execute("UPDATE teams SET schedule_url=? WHERE school=? AND division=?",
                                  (used_url,team['school'],division))
+                resolver = locals().get('_school_schedule_resolver')
+                if resolver is None:
+                    resolver=_build_team_resolver(conn,division)
+                    _school_schedule_resolver=resolver
                 for g in result.get('items', []):
-                    _upsert_game(conn, g)
+                    _upsert_game(conn, g, resolver)
                     out['games_stored'] += 1
             except Exception as exc:
                 out['failures'].append({'school': team['school'], 'error': str(exc)[:240]})

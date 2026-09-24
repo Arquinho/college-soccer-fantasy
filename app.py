@@ -234,18 +234,19 @@ def api_ranking_category():
                      FROM players p JOIN player_season_stats s ON s.player_id=p.id AND s.season=2026
                      WHERE p.division=? {pos_clause} {conf_clause}
                        AND COALESCE(s.{col},0) > 0
-                     ORDER BY s.{col} DESC, COALESCE(s.minutes,0) DESC, p.name LIMIT 100""",tuple(params))
+                     ORDER BY s.{col} DESC, COALESCE(s.minutes,0) DESC, p.name""",tuple(params))
 
         category_key={'scorers':'goals','assists':'assists','clean_sheets':'shutouts'}[cat]
         latest=row("SELECT MAX(snapshot_date) d FROM stat_leaders WHERE division=? AND category=?",(div,category_key))
-        # Fast read path: normal browsing only reads the local cache.
-        # Use Rankings > Refresh to fetch a fresh NCAA men's-soccer leaderboard.
+        # Normal browsing reads the complete cached NCAA leaderboard.  There is
+        # intentionally no top-100 cap: every athlete with a positive goal or
+        # assist value belongs in these lists.
         if latest and latest.get('d'):
             extra_params=[div,category_key,latest['d']]
             extra_where=''
             if conf:
-                extra_where=' AND conference=?'; extra_params.append(conf)
-            extra=rows(f"""SELECT sl.name,sl.school,COALESCE(p.conference,sl.conference) conference,
+                extra_where=' AND sl.conference=?'; extra_params.append(conf)
+            extra=rows(f"""SELECT sl.rank,sl.name,sl.school,COALESCE(p.conference,sl.conference) conference,
                           p.position,COALESCE(p.class_year,sl.class_year) class_year,sl.games,
                           s.minutes minutes,
                           CASE WHEN sl.category='goals' THEN sl.value ELSE 0 END goals,
@@ -255,10 +256,9 @@ def api_ranking_category():
                           FROM stat_leaders sl
                           LEFT JOIN players p ON p.division=sl.division AND lower(p.name)=lower(sl.name) AND lower(p.school)=lower(sl.school)
                           LEFT JOIN player_season_stats s ON s.player_id=p.id AND s.season=2026
-                          WHERE sl.division=? AND sl.category=? AND sl.snapshot_date=? {extra_where.replace('conference=?','sl.conference=?')}
-                          ORDER BY sl.value DESC, COALESCE(sl.rank,9999), sl.name LIMIT 100""",tuple(extra_params))
-            # Fill spelling/alias mismatches (for example Kparde/Kpardeh) from the
-            # imported official roster without changing leaderboard values.
+                          WHERE sl.division=? AND sl.category=? AND sl.snapshot_date=? {extra_where}
+                          ORDER BY sl.value DESC, COALESCE(sl.rank,9999), sl.name""",tuple(extra_params))
+            # Fill spelling/alias mismatches from the imported official roster.
             if any(x.get('position') is None or x.get('minutes') is None for x in extra):
                 import re as _re
                 from difflib import SequenceMatcher as _SequenceMatcher
@@ -281,11 +281,33 @@ def api_ranking_category():
                         x['class_year']=x.get('class_year') or target.get('class_year')
                         x['conference']=x.get('conference') or target.get('conference')
                         if x.get('minutes') is None: x['minutes']=target.get('minutes')
-            seen={(x['name'].lower(),x['school'].lower()) for x in data}
-            for x in extra:
-                if (x['name'].lower(),x['school'].lower()) not in seen:
-                    data.append(x)
-            data=sorted(data,key=lambda x:(-(float(x.get(col) or 0)),-float(x.get('minutes') or 0),x.get('name') or ''))[:100]
+            data.extend(extra)
+
+        # Collapse source/display aliases such as Liberty / Liberty University,
+        # Longwood / Longwood University, etc.  One athlete appears exactly once.
+        import re as _re
+        def _name_key(v): return _re.sub(r'[^a-z0-9]','',str(v or '').lower())
+        merged={}
+        for x in data:
+            key=(_name_key(x.get('name')),_team_key(x.get('school')))
+            if not key[0] or not key[1]:
+                continue
+            cur=merged.get(key)
+            if cur is None:
+                merged[key]=dict(x); continue
+            xv=float(x.get(col) or 0); cv=float(cur.get(col) or 0)
+            # Keep the strongest verified statistic, while enriching the row
+            # with whichever source has position/minutes/conference metadata.
+            if xv>cv:
+                base=dict(x); other=cur
+            else:
+                base=cur; other=x
+            for field in ('position','class_year','conference','minutes','games','source_url','rank'):
+                if base.get(field) in (None,'') and other.get(field) not in (None,''):
+                    base[field]=other.get(field)
+            base[col]=max(xv,cv)
+            merged[key]=base
+        data=sorted(merged.values(),key=lambda x:(-float(x.get(col) or 0),-float(x.get('minutes') or 0),x.get('name') or ''))
         return jsonify(data)
 
     if cat=='defenses':
@@ -377,7 +399,7 @@ def api_sync_rankings():
                 out['conference_fallback']={'ok':False,'error':str(exc)}
         _repair_conference_cache()
         try:
-            out['player_leaders']=sync_ncaa_stat_tables(div)
+            out['player_leaders']=sync_ncaa_stat_tables(div,categories=['goals','assists'])
             ok=ok or any(v.get('ok') for v in out['player_leaders'].values() if isinstance(v,dict))
         except Exception as exc:
             out['player_leaders']={'ok':False,'error':str(exc)}
@@ -506,20 +528,25 @@ def api_games_date():
     def do_refresh():
         try:
             if div in ('D1','D2','D3'):
-                # Future dates must represent the whole division, not only a
-                # school whose schedule happened to be preloaded.  If the cache
-                # for a future date is suspiciously small, warm the NCAA season
-                # schedule first, then refresh that exact date for current status.
+                # Always ask the selected NCAA date first.  This keeps past/live
+                # score clicks fast and prevents a full-season crawl from blocking
+                # the response.  Future scoreboard endpoints are not allowed to
+                # erase a cached fixture list just because the live transport has
+                # not published that date yet.
                 try:
                     selected_day=date.fromisoformat(selected)
                 except Exception:
                     selected_day=date.today()
-                cached_count=row("SELECT COUNT(*) n FROM games WHERE division=? AND game_date=?",(div,selected)).get('n',0)
-                season=None
-                if selected_day>date.today() and int(cached_count or 0)<=1:
-                    season=sync_ncaa_season_schedule_fast(div,year=selected_day.year,recalc=False)
                 exact=sync_ncaa_game_history(div,start_date=selected,end_date=selected,recalc=False)
-                return {'ok':bool(exact.get('ok')),'exact_date':exact,'season_warm':season}
+                fresh_count=row("SELECT COUNT(*) n FROM games WHERE division=? AND game_date=?",(div,selected)).get('n',0)
+                season=None
+                # Only a completely empty future date triggers a season fallback. A one-game
+                # date can be legitimate and must not launch a full-season crawl
+                # during calendar navigation.
+                if selected_day>date.today() and int(fresh_count or 0)==0:
+                    season=sync_ncaa_season_schedule_fast(div,year=selected_day.year,recalc=False)
+                    fresh_count=row("SELECT COUNT(*) n FROM games WHERE division=? AND game_date=?",(div,selected)).get('n',0)
+                return {'ok':bool(exact.get('ok') or (season and season.get('ok'))),'exact_date':exact,'season_warm':season,'stored_for_date':int(fresh_count or 0)}
             elif div in ('NAIA','NJCAA1'):
                 return sync_registered_school_schedules(div)
         except Exception as exc:

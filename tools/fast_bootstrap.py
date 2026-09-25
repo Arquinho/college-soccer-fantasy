@@ -99,21 +99,44 @@ def ensure_schedule_cache_generation():
         print(f"Schedule cache migration: removed {old_count} pre-v5 game rows.")
 
 def overlay_verified_launch_schedule():
+    """Seed the launch-window schedule without overwriting live/final results.
+
+    The verified snapshot is a fixture snapshot, not a results feed.  Earlier
+    builds replaced Sep 23-25 on every startup, which turned already-completed
+    games back into ``scheduled`` rows with blank scores.  For today/past dates,
+    only seed the snapshot when the date is completely absent.  Future snapshot
+    dates may still be replaced as a unit to avoid aliases/duplicates.
+    """
+    from datetime import date
     from database import init_db, db
     from services.sync import _upsert_game
     from services.sources.verified_schedule import fetch_verified_schedule_snapshot
     init_db()
+    today=date.today().isoformat()
+    preserved=0
+    installed=0
     with db() as conn:
         for d in ('2026-09-23','2026-09-24','2026-09-25'):
+            existing=conn.execute(
+                "SELECT COUNT(*) FROM games WHERE division='D1' AND game_date=?",
+                (d,),
+            ).fetchone()[0]
+            if d <= today and existing:
+                preserved += existing
+                continue
             snap=fetch_verified_schedule_snapshot('D1',d)
-            if not snap.get('items'): continue
-            # These launch-window dates are known snapshots. Replace the date as
-            # a unit so old aliases can never coexist with the clean schedule.
+            if not snap.get('items'):
+                continue
             conn.execute("DELETE FROM games WHERE division='D1' AND game_date=?",(d,))
             for g in snap['items']:
                 _upsert_game(conn,g)
+                installed += 1
     c=counts(CURRENT)
-    print(f"Schedule overlay: verified Sep 23-25 cache installed ({c['games']} total game rows).")
+    print(
+        f"Schedule overlay: launch fixtures installed={installed}, "
+        f"existing past/today rows preserved={preserved} "
+        f"({c['games']} total game rows)."
+    )
 
 
 

@@ -1,3 +1,21 @@
+/* COLLEGE_FANTASY_DEMO_FORCE_CLEAN_V2
+   One-time demo reset. Runs before the application reads saved browser state.
+   After the first clean load, new user actions may persist normally according
+   to the app's save/submit behavior.
+*/
+(() => {
+  const RESET_KEY = 'college_fantasy_demo_force_clean_v2_done';
+  try {
+    if (localStorage.getItem(RESET_KEY) !== '1') {
+      localStorage.clear();
+      sessionStorage.clear();
+      localStorage.setItem(RESET_KEY, '1');
+    }
+  } catch (err) {
+    console.warn('Demo clean-start reset could not access browser storage.', err);
+  }
+})();
+
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const clamp = (n,a,b) => Math.max(a, Math.min(b,n));

@@ -3,6 +3,7 @@ const $$ = (s) => [...document.querySelectorAll(s)];
 const clamp = (n,a,b) => Math.max(a, Math.min(b,n));
 const money = n => `${Number(n||0).toFixed(1)}M`;
 const worldOrder = ['D1','D2','NAIA','NJCAA1'];
+const DAILY_GUESS_ROUNDS = 5;
 const worlds = {
   D1:{label:'NCAA D1',budget:120,source:'https://www.ncaa.com/sports/soccer-men/d1'},
   D2:{label:'NCAA D2',budget:120,source:'https://www.ncaa.com/sports/soccer-men/d2'},
@@ -16,9 +17,9 @@ const formations = {
 };
 const conferenceStrength = {'ACC':1,'Big Ten':.98,'SEC':.96,'Big 12':.94,'Big East':.92,'Pac-12':.92,'American Athletic':.84,'ASUN':.74,'Big West':.81,'CUSA':.77,'A-10':.78,'Summit League':.70,'Sun Belt':.82,'GLIAC':.79,'PSAC':.76,'NE10':.75,'CCAA':.79,'SCIAC':.68,'NESCAC':.78,'UAA':.80,'Crossroads':.75,'GSAC':.76,'Sun Conference':.74,'Kansas Jayhawk':.72,'Region 8':.72,'Region 14':.70};
 const i18n = {
- en:{dashboard:'Dashboard',lineup:'Lineup',market:'Market',budgetBoost:'Budget Boost',rankings:'Rankings',competitions:'Competitions',seasonProgress:'2026 season in progress.',syncCopy:'Scores, rankings and news can sync with public sources.',gamesPredictions:'GAMES & PREDICTIONS',viewProfile:'VIEW PROFILE',latestRound:'World participation',worldNote:'Each world is independent. Play only the ones you want.',quickAccess:'Quick Access',allWorlds:'All worlds. One profile.',worldBanner:'Build lineups, manage budgets, track rankings and compete across every world.',exploreWorlds:'EXPLORE WORLDS',collegeSoccer:'COLLEGE SOCCER',newsTitle:'College Soccer News',refresh:'Refresh',openNcaa:'OPEN NCAA ↗',all:'All',roundPredictions:'Game Predictions',predictCopy:'Browse every available game and predict only the matches you want.',browseAllGames:'BROWSE ALL GAMES',savePredictions:'SAVE PREDICTIONS',results:'RESULTS',realScores:'Live & latest scores',viewAllResults:'VIEW ALL RESULTS',buildTeam:'Build your team',worldsIndependent:'Independent worlds — participate only in the ones you want.',formation:'Formation',baseBudget:'Budget base',playersSelected:'Players (0/11)',remaining:'Remaining',avgPlayer:'Avg. per player',howScoring:'HOW SCORING WORKS',confirmLineup:'CONFIRM LINEUP',lineupOnPitch:'Lineup on the pitch',changeStadium:'Change stadium view',yourXi:'YOUR XI',yourLineup:'Your Lineup',benchOptional:'BENCH (OPTIONAL)',openMarket:'OPEN MARKET',marketTitle:'Player Market',marketDesc:'Real players and coaches with fantasy prices driven by individual production, team strength, conference level and role.',availableBudget:'Available budget',players:'Players',headCoach:'Head Coach',assistantCoach:'Assistant Coach',allPositions:'All positions',allConferences:'All conferences',allSchools:'All schools',allClasses:'All classes',priceHigh:'Price: high to low',priceLow:'Price: low to high',minutesHigh:'Minutes: high to low',searchPlayers:'Search players...',syncData:'SYNC DATA',howCalculate:'How we calculate it',buyBudgetBoost:'GET BUDGET BOOST',clearFilters:'Clear filters',boostDesc:'Optional fantasy budget benefits. This prototype activates them locally and never processes payment.',currentBoost:'Your boost',thisWorldOnly:'valid in this world',rankingsDesc:'National rankings, conference tables, scoring leaders, assist leaders and defensive performance across every world.',nationalRanking:'National ranking',conferenceStandings:'Conference standings',topScorers:'Top scorers',assistLeaders:'Assist leaders',bestDefenses:'Best defenses',cleanSheetLeaders:'Clean-sheet leaders',competitionsDesc:'Your private and public fantasy leagues. You never have to play every world.',games:'Games & Results',gamesDesc:'Choose a date, conference and school to browse every game in the active world.',selectDate:'Select date',allStatuses:'All games',liveOnly:'Live',scheduledOnly:'Scheduled',finalOnly:'Final',gamesOn:'Games on',calendar:'Calendar',predShowing:'Showing',ofGames:'games',loginHeadline:'College soccer. One fantasy game.',loginSub:'NCAA D1, NCAA D2, NAIA and NJCAA D1 in separate worlds.',password:'Password',enter:'Enter',loginLegal:'Prototype: no real payment is processed.'},
- pt:{dashboard:'Dashboard',lineup:'Escalação',market:'Mercado',budgetBoost:'Budget Boost',rankings:'Rankings',competitions:'Competições',seasonProgress:'Temporada 2026 em andamento.',syncCopy:'Resultados, rankings e notícias podem sincronizar com fontes públicas.',gamesPredictions:'JOGOS & PALPITES',viewProfile:'VER PERFIL',latestRound:'Participação nos mundos',worldNote:'Cada mundo é independente. Jogue apenas os que quiser.',quickAccess:'Acesso rápido',allWorlds:'Todos os mundos. Um perfil.',worldBanner:'Monte escalações, gerencie orçamentos, acompanhe rankings e compita em cada mundo.',exploreWorlds:'EXPLORAR MUNDOS',collegeSoccer:'COLLEGE SOCCER',newsTitle:'Notícias do College Soccer',refresh:'Atualizar',openNcaa:'ABRIR NCAA ↗',all:'Todos',roundPredictions:'Palpites de jogos',predictCopy:'Veja todos os jogos disponíveis e palpite apenas nos que quiser.',browseAllGames:'VER TODOS OS JOGOS',savePredictions:'SALVAR PALPITES',results:'RESULTADOS',realScores:'Resultados ao vivo e recentes',viewAllResults:'VER TODOS OS RESULTADOS',buildTeam:'Monte seu time',worldsIndependent:'Mundos independentes — participe apenas dos que quiser.',formation:'Formação',baseBudget:'Orçamento base',playersSelected:'Jogadores (0/11)',remaining:'Restante',avgPlayer:'Média por jogador',howScoring:'COMO PONTUA?',confirmLineup:'CONFIRMAR ESCALAÇÃO',lineupOnPitch:'Escalação no campo',changeStadium:'Alterar vista do estádio',yourXi:'SEU XI',yourLineup:'Sua Escalação',benchOptional:'BANCO (OPCIONAL)',openMarket:'ABRIR MERCADO',marketTitle:'Mercado de Jogadores',marketDesc:'Jogadores e treinadores com preços fantasy guiados por produção individual, força do time, nível da conferência e função.',availableBudget:'Orçamento disponível',players:'Jogadores',headCoach:'Head Coach',assistantCoach:'Assistant Coach',allPositions:'Todas posições',allConferences:'Todas conferências',allSchools:'Todas escolas',allClasses:'Todas classes',priceHigh:'Preço: maior para menor',priceLow:'Preço: menor para maior',minutesHigh:'Minutos: maior para menor',searchPlayers:'Buscar jogadores...',syncData:'SINCRONIZAR',howCalculate:'Como calculamos',buyBudgetBoost:'OBTER BUDGET BOOST',clearFilters:'Limpar filtros',boostDesc:'Benefícios opcionais de orçamento fantasy. Este protótipo ativa localmente e não processa pagamento.',currentBoost:'Seu boost',thisWorldOnly:'válido neste mundo',rankingsDesc:'Rankings nacionais, tabelas de conferência, artilharia, assistências e desempenho defensivo de todos os mundos.',nationalRanking:'Ranking nacional',conferenceStandings:'Classificação por conferência',topScorers:'Artilharia',assistLeaders:'Assistências',bestDefenses:'Melhores defesas',cleanSheetLeaders:'Clean sheets',competitionsDesc:'Suas ligas fantasy públicas e privadas. Você não precisa jogar em todos os mundos.',games:'Jogos & Resultados',gamesDesc:'Escolha uma data, conferência e faculdade para ver todos os jogos do mundo ativo.',selectDate:'Selecionar data',allStatuses:'Todos os jogos',liveOnly:'Ao vivo',scheduledOnly:'Agendados',finalOnly:'Encerrados',gamesOn:'Jogos em',calendar:'Calendário',predShowing:'Mostrando',ofGames:'jogos',loginHeadline:'College soccer. Um fantasy game.',loginSub:'NCAA D1, NCAA D2, NAIA e NJCAA D1 em mundos separados.',password:'Senha',enter:'Entrar',loginLegal:'Protótipo: nenhum pagamento real é processado.'},
- es:{dashboard:'Dashboard',lineup:'Alineación',market:'Mercado',budgetBoost:'Budget Boost',rankings:'Rankings',competitions:'Competiciones',seasonProgress:'Temporada 2026 en curso.',syncCopy:'Resultados, rankings y noticias pueden sincronizarse con fuentes públicas.',gamesPredictions:'PARTIDOS & PRONÓSTICOS',viewProfile:'VER PERFIL',latestRound:'Participación en mundos',worldNote:'Cada mundo es independiente. Juega solo los que quieras.',quickAccess:'Acceso rápido',allWorlds:'Todos los mundos. Un perfil.',worldBanner:'Crea alineaciones, gestiona presupuestos, sigue rankings y compite en cada mundo.',exploreWorlds:'EXPLORAR MUNDOS',collegeSoccer:'COLLEGE SOCCER',newsTitle:'Noticias de College Soccer',refresh:'Actualizar',openNcaa:'ABRIR NCAA ↗',all:'Todos',roundPredictions:'Pronósticos',predictCopy:'Mira todos los partidos disponibles y pronostica solo los que quieras.',browseAllGames:'VER TODOS LOS PARTIDOS',savePredictions:'GUARDAR PRONÓSTICOS',results:'RESULTADOS',realScores:'Resultados en vivo y recientes',viewAllResults:'VER TODOS LOS RESULTADOS',buildTeam:'Arma tu equipo',worldsIndependent:'Mundos independientes — participa solo en los que quieras.',formation:'Formación',baseBudget:'Presupuesto base',playersSelected:'Jugadores (0/11)',remaining:'Restante',avgPlayer:'Promedio por jugador',howScoring:'CÓMO PUNTÚA',confirmLineup:'CONFIRMAR ALINEACIÓN',lineupOnPitch:'Alineación en el campo',changeStadium:'Cambiar vista del estadio',yourXi:'TU XI',yourLineup:'Tu Alineación',benchOptional:'BANQUILLO (OPCIONAL)',openMarket:'ABRIR MERCADO',marketTitle:'Mercado de Jugadores',marketDesc:'Jugadores y entrenadores con precios fantasy basados en producción individual, fuerza del equipo, nivel de conferencia y rol.',availableBudget:'Presupuesto disponible',players:'Jugadores',headCoach:'Head Coach',assistantCoach:'Assistant Coach',allPositions:'Todas posiciones',allConferences:'Todas conferencias',allSchools:'Todas escuelas',allClasses:'Todas clases',priceHigh:'Precio: mayor a menor',priceLow:'Precio: menor a mayor',minutesHigh:'Minutos: mayor a menor',searchPlayers:'Buscar jugadores...',syncData:'SINCRONIZAR',howCalculate:'Cómo calculamos',buyBudgetBoost:'OBTENER BUDGET BOOST',clearFilters:'Limpiar filtros',boostDesc:'Beneficios opcionales de presupuesto fantasy. Este prototipo los activa localmente y no procesa pagos.',currentBoost:'Tu boost',thisWorldOnly:'válido en este mundo',rankingsDesc:'Rankings nacionales, tablas de conferencia, goleadores, asistencias y rendimiento defensivo de todos los mundos.',nationalRanking:'Ranking nacional',conferenceStandings:'Clasificación por conferencia',topScorers:'Goleadores',assistLeaders:'Asistencias',bestDefenses:'Mejores defensas',cleanSheetLeaders:'Clean sheets',competitionsDesc:'Tus ligas fantasy públicas y privadas. No necesitas jugar en todos los mundos.',games:'Partidos & Resultados',gamesDesc:'Elige una fecha, conferencia y universidad para ver todos los partidos del mundo activo.',selectDate:'Seleccionar fecha',allStatuses:'Todos los partidos',liveOnly:'En vivo',scheduledOnly:'Programados',finalOnly:'Finalizados',gamesOn:'Partidos del',calendar:'Calendario',predShowing:'Mostrando',ofGames:'partidos',loginHeadline:'College soccer. Un fantasy game.',loginSub:'NCAA D1, NCAA D2, NAIA y NJCAA D1 en mundos separados.',password:'Contraseña',enter:'Entrar',loginLegal:'Prototipo: no se procesa ningún pago real.'}
+ en:{dashboard:'Dashboard',lineup:'Lineup',market:'Market',budgetBoost:'Budget Boost',rankings:'Rankings',competitions:'Competitions',dailyGames:'Daily Games',seasonProgress:'2026 season in progress.',syncCopy:'Scores, rankings and news can sync with public sources.',gamesPredictions:'GAMES & PREDICTIONS',viewProfile:'VIEW PROFILE',latestRound:'World participation',worldNote:'Each world is independent. Play only the ones you want.',quickAccess:'Quick Access',allWorlds:'All worlds. One profile.',worldBanner:'Build lineups, manage budgets, track rankings and compete across every world.',exploreWorlds:'EXPLORE WORLDS',collegeSoccer:'COLLEGE SOCCER',newsTitle:'College Soccer News',refresh:'Refresh',openNcaa:'OPEN NCAA ↗',all:'All',roundPredictions:'Game Predictions',predictCopy:'Browse every available game and predict only the matches you want.',browseAllGames:'BROWSE ALL GAMES',savePredictions:'SAVE PREDICTIONS',results:'RESULTS',realScores:'Live & latest scores',viewAllResults:'VIEW ALL RESULTS',buildTeam:'Build your team',worldsIndependent:'Independent worlds — participate only in the ones you want.',formation:'Formation',baseBudget:'Budget base',playersSelected:'Players (0/11)',remaining:'Remaining',avgPlayer:'Avg. per player',howScoring:'HOW SCORING WORKS',confirmLineup:'CONFIRM LINEUP',lineupOnPitch:'Lineup on the pitch',changeStadium:'Change stadium view',yourXi:'YOUR XI',yourLineup:'Your Lineup',benchOptional:'BENCH (OPTIONAL)',openMarket:'OPEN MARKET',marketTitle:'Player Market',marketDesc:'Real players and coaches with fantasy prices driven by individual production, team strength, conference level and role.',availableBudget:'Available budget',players:'Players',headCoach:'Head Coach',assistantCoach:'Assistant Coach',allPositions:'All positions',allConferences:'All conferences',allSchools:'All schools',allClasses:'All classes',priceHigh:'Price: high to low',priceLow:'Price: low to high',minutesHigh:'Minutes: high to low',searchPlayers:'Search players...',syncData:'SYNC DATA',howCalculate:'How we calculate it',buyBudgetBoost:'GET BUDGET BOOST',clearFilters:'Clear filters',boostDesc:'Optional fantasy budget benefits. This prototype activates them locally and never processes payment.',currentBoost:'Your boost',thisWorldOnly:'valid in this world',rankingsDesc:'National rankings, conference tables, scoring leaders, assist leaders and defensive performance across every world.',nationalRanking:'National ranking',conferenceStandings:'Conference standings',topScorers:'Top scorers',assistLeaders:'Assist leaders',bestDefenses:'Best defenses',cleanSheetLeaders:'Clean-sheet leaders',competitionsDesc:'Your private and public fantasy leagues. You never have to play every world.',games:'Games & Results',gamesDesc:'Choose a date, conference and school to browse every game in the active world.',selectDate:'Select date',allStatuses:'All games',liveOnly:'Live',scheduledOnly:'Scheduled',finalOnly:'Final',gamesOn:'Games on',calendar:'Calendar',predShowing:'Showing',ofGames:'games',loginHeadline:'College soccer. One fantasy game.',loginSub:'NCAA D1, NCAA D2, NAIA and NJCAA D1 in separate worlds.',password:'Password',enter:'Enter',loginLegal:'Prototype: no real payment is processed.'},
+ pt:{dashboard:'Dashboard',lineup:'Escalação',market:'Mercado',budgetBoost:'Budget Boost',rankings:'Rankings',competitions:'Competições',dailyGames:'Jogos Diários',seasonProgress:'Temporada 2026 em andamento.',syncCopy:'Resultados, rankings e notícias podem sincronizar com fontes públicas.',gamesPredictions:'JOGOS & PALPITES',viewProfile:'VER PERFIL',latestRound:'Participação nos mundos',worldNote:'Cada mundo é independente. Jogue apenas os que quiser.',quickAccess:'Acesso rápido',allWorlds:'Todos os mundos. Um perfil.',worldBanner:'Monte escalações, gerencie orçamentos, acompanhe rankings e compita em cada mundo.',exploreWorlds:'EXPLORAR MUNDOS',collegeSoccer:'COLLEGE SOCCER',newsTitle:'Notícias do College Soccer',refresh:'Atualizar',openNcaa:'ABRIR NCAA ↗',all:'Todos',roundPredictions:'Palpites de jogos',predictCopy:'Veja todos os jogos disponíveis e palpite apenas nos que quiser.',browseAllGames:'VER TODOS OS JOGOS',savePredictions:'SALVAR PALPITES',results:'RESULTADOS',realScores:'Resultados ao vivo e recentes',viewAllResults:'VER TODOS OS RESULTADOS',buildTeam:'Monte seu time',worldsIndependent:'Mundos independentes — participe apenas dos que quiser.',formation:'Formação',baseBudget:'Orçamento base',playersSelected:'Jogadores (0/11)',remaining:'Restante',avgPlayer:'Média por jogador',howScoring:'COMO PONTUA?',confirmLineup:'CONFIRMAR ESCALAÇÃO',lineupOnPitch:'Escalação no campo',changeStadium:'Alterar vista do estádio',yourXi:'SEU XI',yourLineup:'Sua Escalação',benchOptional:'BANCO (OPCIONAL)',openMarket:'ABRIR MERCADO',marketTitle:'Mercado de Jogadores',marketDesc:'Jogadores e treinadores com preços fantasy guiados por produção individual, força do time, nível da conferência e função.',availableBudget:'Orçamento disponível',players:'Jogadores',headCoach:'Head Coach',assistantCoach:'Assistant Coach',allPositions:'Todas posições',allConferences:'Todas conferências',allSchools:'Todas escolas',allClasses:'Todas classes',priceHigh:'Preço: maior para menor',priceLow:'Preço: menor para maior',minutesHigh:'Minutos: maior para menor',searchPlayers:'Buscar jogadores...',syncData:'SINCRONIZAR',howCalculate:'Como calculamos',buyBudgetBoost:'OBTER BUDGET BOOST',clearFilters:'Limpar filtros',boostDesc:'Benefícios opcionais de orçamento fantasy. Este protótipo ativa localmente e não processa pagamento.',currentBoost:'Seu boost',thisWorldOnly:'válido neste mundo',rankingsDesc:'Rankings nacionais, tabelas de conferência, artilharia, assistências e desempenho defensivo de todos os mundos.',nationalRanking:'Ranking nacional',conferenceStandings:'Classificação por conferência',topScorers:'Artilharia',assistLeaders:'Assistências',bestDefenses:'Melhores defesas',cleanSheetLeaders:'Clean sheets',competitionsDesc:'Suas ligas fantasy públicas e privadas. Você não precisa jogar em todos os mundos.',games:'Jogos & Resultados',gamesDesc:'Escolha uma data, conferência e faculdade para ver todos os jogos do mundo ativo.',selectDate:'Selecionar data',allStatuses:'Todos os jogos',liveOnly:'Ao vivo',scheduledOnly:'Agendados',finalOnly:'Encerrados',gamesOn:'Jogos em',calendar:'Calendário',predShowing:'Mostrando',ofGames:'jogos',loginHeadline:'College soccer. Um fantasy game.',loginSub:'NCAA D1, NCAA D2, NAIA e NJCAA D1 em mundos separados.',password:'Senha',enter:'Entrar',loginLegal:'Protótipo: nenhum pagamento real é processado.'},
+ es:{dashboard:'Dashboard',lineup:'Alineación',market:'Mercado',budgetBoost:'Budget Boost',rankings:'Rankings',competitions:'Competiciones',dailyGames:'Juegos Diarios',seasonProgress:'Temporada 2026 en curso.',syncCopy:'Resultados, rankings y noticias pueden sincronizarse con fuentes públicas.',gamesPredictions:'PARTIDOS & PRONÓSTICOS',viewProfile:'VER PERFIL',latestRound:'Participación en mundos',worldNote:'Cada mundo es independiente. Juega solo los que quieras.',quickAccess:'Acceso rápido',allWorlds:'Todos los mundos. Un perfil.',worldBanner:'Crea alineaciones, gestiona presupuestos, sigue rankings y compite en cada mundo.',exploreWorlds:'EXPLORAR MUNDOS',collegeSoccer:'COLLEGE SOCCER',newsTitle:'Noticias de College Soccer',refresh:'Actualizar',openNcaa:'ABRIR NCAA ↗',all:'Todos',roundPredictions:'Pronósticos',predictCopy:'Mira todos los partidos disponibles y pronostica solo los que quieras.',browseAllGames:'VER TODOS LOS PARTIDOS',savePredictions:'GUARDAR PRONÓSTICOS',results:'RESULTADOS',realScores:'Resultados en vivo y recientes',viewAllResults:'VER TODOS LOS RESULTADOS',buildTeam:'Arma tu equipo',worldsIndependent:'Mundos independientes — participa solo en los que quieras.',formation:'Formación',baseBudget:'Presupuesto base',playersSelected:'Jugadores (0/11)',remaining:'Restante',avgPlayer:'Promedio por jugador',howScoring:'CÓMO PUNTÚA',confirmLineup:'CONFIRMAR ALINEACIÓN',lineupOnPitch:'Alineación en el campo',changeStadium:'Cambiar vista del estadio',yourXi:'TU XI',yourLineup:'Tu Alineación',benchOptional:'BANQUILLO (OPCIONAL)',openMarket:'ABRIR MERCADO',marketTitle:'Mercado de Jugadores',marketDesc:'Jugadores y entrenadores con precios fantasy basados en producción individual, fuerza del equipo, nivel de conferencia y rol.',availableBudget:'Presupuesto disponible',players:'Jugadores',headCoach:'Head Coach',assistantCoach:'Assistant Coach',allPositions:'Todas posiciones',allConferences:'Todas conferencias',allSchools:'Todas escuelas',allClasses:'Todas clases',priceHigh:'Precio: mayor a menor',priceLow:'Precio: menor a mayor',minutesHigh:'Minutos: mayor a menor',searchPlayers:'Buscar jugadores...',syncData:'SINCRONIZAR',howCalculate:'Cómo calculamos',buyBudgetBoost:'OBTENER BUDGET BOOST',clearFilters:'Limpiar filtros',boostDesc:'Beneficios opcionales de presupuesto fantasy. Este prototipo los activa localmente y no procesa pagos.',currentBoost:'Tu boost',thisWorldOnly:'válido en este mundo',rankingsDesc:'Rankings nacionales, tablas de conferencia, goleadores, asistencias y rendimiento defensivo de todos los mundos.',nationalRanking:'Ranking nacional',conferenceStandings:'Clasificación por conferencia',topScorers:'Goleadores',assistLeaders:'Asistencias',bestDefenses:'Mejores defensas',cleanSheetLeaders:'Clean sheets',competitionsDesc:'Tus ligas fantasy públicas y privadas. No necesitas jugar en todos los mundos.',games:'Partidos & Resultados',gamesDesc:'Elige una fecha, conferencia y universidad para ver todos los partidos del mundo activo.',selectDate:'Seleccionar fecha',allStatuses:'Todos los partidos',liveOnly:'En vivo',scheduledOnly:'Programados',finalOnly:'Finalizados',gamesOn:'Partidos del',calendar:'Calendario',predShowing:'Mostrando',ofGames:'partidos',loginHeadline:'College soccer. Un fantasy game.',loginSub:'NCAA D1, NCAA D2, NAIA y NJCAA D1 en mundos separados.',password:'Contraseña',enter:'Entrar',loginLegal:'Prototipo: no se procesa ningún pago real.'}
 };
 
 const verifiedRankingSnapshots={};
@@ -38,8 +39,19 @@ const verifiedGameSnapshots={
  ]}
 };
 const saved=JSON.parse(localStorage.getItem('college_fantasy_v1_state')||'{}');
-const state={lang:saved.lang||'en',activeWorld:saved.activeWorld||'D1',profile:saved.profile||{team:'Campus Eleven F.C.',handle:'manager',initials:'LC'},participation:saved.participation||{D1:true,D2:false,D3:false,NAIA:false,NJCAA1:false},worldState:saved.worldState||{},predictions:saved.predictions||{},leagues:saved.leagues||[],dashboardCache:saved.dashboardCache||{},players:[],coaches:[],games:[],news:[],filters:{conferences:[],schools:[]},teamRows:[],gameCoverage:null,statsCoverage:null,statsSyncing:{},rankingWorld:saved.rankingWorld||'D1',rankingCat:saved.rankingCat||'scorers',rankingPage:1,rankingPageSize:15,rankingConferences:{},rankingSyncing:false,gameFilter:'all',gameConference:'all',gameSchool:'all',gameDate:saved.gameDate||isoToday(),predConference:'all',predSchool:'all',predPage:1,predPageSize:15,newsFilter:'all',rankingRemote:{},rankingLoading:{},seasonSyncing:{},refreshTimersStarted:false,marketVisibleCount:60,marketContext:{type:'players',position:'all',bench:false},rosterLoaded:false,rosterPromise:null,playerBuckets:{},coachesLoaded:false,coachPromise:null,marketLoading:false,filtersLoaded:false,extendedGamesLoaded:false,coverageLoaded:false,loadToken:0};
-function save(){localStorage.setItem('college_fantasy_v1_state',JSON.stringify({lang:state.lang,activeWorld:state.activeWorld,profile:state.profile,participation:state.participation,worldState:state.worldState,predictions:state.predictions,leagues:state.leagues,dashboardCache:state.dashboardCache,rankingWorld:state.rankingWorld,rankingCat:state.rankingCat,gameDate:state.gameDate}))}
+const state={lang:saved.lang||'en',activeWorld:saved.activeWorld||'D1',profile:saved.profile||{team:'Campus Eleven F.C.',handle:'manager',initials:'LC'},participation:saved.participation||{D1:true,D2:false,D3:false,NAIA:false,NJCAA1:false},worldState:saved.worldState||{},predictions:saved.predictions||{},dailyGames:saved.dailyGames||{},leagues:saved.leagues||[],dashboardCache:saved.dashboardCache||{},players:[],coaches:[],games:[],news:[],filters:{conferences:[],schools:[]},teamRows:[],gameCoverage:null,statsCoverage:null,statsSyncing:{},rankingWorld:saved.rankingWorld||'D1',rankingCat:saved.rankingCat||'scorers',rankingPage:1,rankingPageSize:15,rankingConferences:{},rankingSyncing:false,gameFilter:'all',gameConference:'all',gameSchool:'all',gameDate:saved.gameDate||isoToday(),predConference:'all',predSchool:'all',predPage:1,predPageSize:15,newsFilter:'all',rankingRemote:{},rankingLoading:{},seasonSyncing:{},refreshTimersStarted:false,marketVisibleCount:60,marketContext:{type:'players',position:'all',bench:false},rosterLoaded:false,rosterPromise:null,playerBuckets:{},coachesLoaded:false,coachPromise:null,marketLoading:false,filtersLoaded:false,extendedGamesLoaded:false,coverageLoaded:false,loadToken:0};
+state.dailyPickemDate=isoToday();state.dailyPickemMode='today';state.dailyPickemCache={};state.dailyPickemLoading=false;state.dailyGuessRound=1;state.dailyGuessRuntime=null;state.dailyGuessLoading=false;state.dailyGuessSelected=null;state.dailyGuessSearchTimer=null;
+// One-time reset for the Pedro Arcoverde QA test: make NCAA D1 Player 1 start fresh.
+const PEDRO_TEST_RESET_KEY='college_fantasy_pedro_test_2026-09-25_v4';
+if(!localStorage.getItem(PEDRO_TEST_RESET_KEY)){
+ const d1=state.dailyGames?.D1;
+ if(d1?.guessByDate){delete d1.guessByDate['2026-09-25#1'];}
+ state.dailyGuessRound=1;
+ state.dailyGuessRuntime=null;
+ state.dailyGuessSelected=null;
+ localStorage.setItem(PEDRO_TEST_RESET_KEY,'1');
+}
+function save(){localStorage.setItem('college_fantasy_v1_state',JSON.stringify({lang:state.lang,activeWorld:state.activeWorld,profile:state.profile,participation:state.participation,worldState:state.worldState,predictions:state.predictions,dailyGames:state.dailyGames,leagues:state.leagues,dashboardCache:state.dashboardCache,rankingWorld:state.rankingWorld,rankingCat:state.rankingCat,gameDate:state.gameDate}))}
 function cacheDashboardWorld(world=state.activeWorld){if(world!==state.activeWorld)return;state.dashboardCache[world]={news:(state.news||[]).slice(0,12),games:(state.games||[]).filter(g=>g.game_date>=isoOffset(-1)&&g.game_date<=isoOffset(10)).slice(0,220),prospects:(state.prospects||[]).slice(0,8),cached_at:new Date().toISOString()};save()}
 function tr(k){return i18n[state.lang]?.[k]||i18n.en[k]||k}
 function ws(world=state.activeWorld){if(!state.worldState[world])state.worldState[world]={formation:'4-3-3',boost:0,lineup:{starters:[],bench:{},HC:null,AC:null},seeded:false};return state.worldState[world]}
@@ -59,9 +71,9 @@ function query(path,obj={}){if(location.protocol==='file:'||location.origin==='n
 const fallbackNews={D1:[],NJCAA1:[]};
 function boot(show=true){const el=$('#bootOverlay');if(el)el.classList.toggle('hidden',!show)}
 
-function buildNav(){const items=[['dashboard','dashboard'],['team','lineup'],['rankings','rankings'],['competitions','competitions'],['games','games']];$('#nav').innerHTML=items.map(([id,k])=>`<button class="nav-tab" data-jump="${id}">${tr(k)}</button>`).join('')}
+function buildNav(){const items=[['dashboard','dashboard'],['team','lineup'],['rankings','rankings'],['competitions','competitions'],['games','games'],['daily-games','dailyGames']];$('#nav').innerHTML=items.map(([id,k])=>`<button class="nav-tab" data-jump="${id}">${tr(k)}</button>`).join('')}
 function applyLang(){document.documentElement.lang=state.lang;$$('[data-i18n]').forEach(el=>el.textContent=tr(el.dataset.i18n));$$('[data-i18n-placeholder]').forEach(el=>el.placeholder=tr(el.dataset.i18nPlaceholder));$$('[data-lang]').forEach(b=>b.classList.toggle('active',b.dataset.lang===state.lang));$$('[data-login-lang]').forEach(b=>b.classList.toggle('active',b.dataset.loginLang===state.lang));buildNav();markActiveNav()}
-function markActiveNav(){let active=$('.page.active')?.id;if(active==='market')active='team';$$('.nav-tab').forEach(b=>b.classList.toggle('active',b.dataset.jump===active))}
+function markActiveNav(){let active=$('.page.active')?.id;if(active==='market')active='team';if(active==='daily-pickem'||active==='daily-guess')active='daily-games';$$('.nav-tab').forEach(b=>b.classList.toggle('active',b.dataset.jump===active))}
 function renderWorldSelectors(){const options=worldOrder.map(w=>`<option value="${w}">${worlds[w].label}</option>`).join('');['worldSelector','filterDivision','rankingWorld'].forEach(id=>{const el=$('#'+id);if(!el)return;el.innerHTML=options;el.value=id==='rankingWorld'?state.rankingWorld:state.activeWorld});if($('#profileBudget'))$('#profileBudget').textContent=money(totalBudget());if($('#profilePlayers'))$('#profilePlayers').textContent=selectedPlayerIds().length;if($('#profileRank')&&!$('#profileRank').textContent.trim())$('#profileRank').textContent='#4,281';const title=document.querySelector('.profile-panel h3');const sub=document.querySelector('.profile-panel p');if(title)title.textContent=state.profile.team||'Campus Eleven F.C.';if(sub)sub.textContent=`@${state.profile.handle||'manager'} · 2026 season`;if($('.avatar'))$('.avatar').textContent=state.profile.initials||'LC'}
 function show(id){
  // Navigation must never wait on NCAA.com, SQLite reads, or the large player roster.
@@ -87,6 +99,9 @@ function show(id){
    return
  }
  if(id==='competitions'){renderCompetitions();return}
+ if(id==='daily-games'){renderDailyGames();return}
+ if(id==='daily-pickem'){renderDailyPickem();setTimeout(()=>loadDailyPickemForDate(state.dailyPickemDate),0);return}
+ if(id==='daily-guess'){renderDailyGuess();setTimeout(()=>loadDailyGuess(),0);return}
  if(id==='games'){
    renderGames();
    // Only read local SQLite caches after the page is already visible. Never
@@ -260,7 +275,339 @@ function renderAll(){
  else if(active==='rankings')renderRankings();
  else if(active==='competitions')renderCompetitions();
  else if(active==='games')renderGames();
+ else if(active==='daily-games')renderDailyGames();
+ else if(active==='daily-pickem')renderDailyPickem();
+ else if(active==='daily-guess')renderDailyGuess();
 }
+
+
+function isoShiftDate(base,days){const [y,m,d]=String(base||isoToday()).split('-').map(Number);const x=new Date(y,m-1,d,12);x.setDate(x.getDate()+Number(days||0));return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`}
+function dailyNiceDate(value){const [y,m,d]=String(value||isoToday()).split('-').map(Number);return new Date(y,m-1,d,12).toLocaleDateString(state.lang==='pt'?'pt-BR':state.lang==='es'?'es-ES':'en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}
+function dailyGameState(world=state.activeWorld){
+ let root=state.dailyGames[world];
+ if(!root||typeof root!=='object')root={};
+ if(!root.pickemByDate)root.pickemByDate={};
+ if(!root.guessByDate)root.guessByDate={};
+ // One-time migration: reset only Guess the Player progress when switching
+ // from the old one-player format to the five-player daily format.
+ if(root.guessModeVersion!=='five-round-v1'){
+  root.guessByDate={};
+  root.guessModeVersion='five-round-v1';
+ }
+ if(!Number.isFinite(Number(root.streak)))root.streak=0;
+ if(!('lastCompletedDate' in root))root.lastCompletedDate=null;
+ state.dailyGames[world]=root;return root;
+}
+function dailyPickRecord(date=isoToday(),world=state.activeWorld){
+ const root=dailyGameState(world);
+ if(!root.pickemByDate[date])root.pickemByDate[date]={picks:{},submittedPicks:{},submitted:false,submittedAt:null,completed:false,waived:false,score:0};
+ const r=root.pickemByDate[date];
+ if(!r.picks||typeof r.picks!=='object')r.picks={};
+ if(!r.submittedPicks||typeof r.submittedPicks!=='object')r.submittedPicks={};
+ if(!('submitted' in r))r.submitted=false;
+ if(!('submittedAt' in r))r.submittedAt=null;
+ return r
+}
+function dailyGuessKey(date=isoToday(),round=state.dailyGuessRound||1){return `${date}#${Math.max(1,Math.min(DAILY_GUESS_ROUNDS,Number(round)||1))}`}
+function dailyGuessRecord(date=isoToday(),world=state.activeWorld,round=state.dailyGuessRound||1){const root=dailyGameState(world),key=dailyGuessKey(date,round);if(!root.guessByDate[key])root.guessByDate[key]={questions:[],guesses:[],completed:false,solved:false,failed:false,score:0,answerKey:null};const r=root.guessByDate[key];if(!Array.isArray(r.questions))r.questions=[];if(!Array.isArray(r.guesses))r.guesses=[];return r}
+function dailyGuessRecords(date=isoToday(),world=state.activeWorld){return Array.from({length:DAILY_GUESS_ROUNDS},(_,i)=>dailyGuessRecord(date,world,i+1))}
+function dailyGuessCompletedCount(date=isoToday(),world=state.activeWorld){return dailyGuessRecords(date,world).filter(r=>r.completed).length}
+function dailyGuessAllComplete(date=isoToday(),world=state.activeWorld){return dailyGuessCompletedCount(date,world)>=DAILY_GUESS_ROUNDS}
+function dailyGuessScoreTotal(date=isoToday(),world=state.activeWorld){return dailyGuessRecords(date,world).reduce((sum,r)=>sum+Number(r.score||0),0)}
+function dailyUpdateStreak(world=state.activeWorld){const root=dailyGameState(world),today=isoToday(),pick=dailyPickRecord(today,world);if(!(pick.completed&&dailyGuessAllComplete(today,world)))return;if(root.lastCompletedDate===today)return;root.streak=root.lastCompletedDate===isoShiftDate(today,-1)?Number(root.streak||0)+1:1;root.lastCompletedDate=today;save()}
+function dailyTodayPoints(world=state.activeWorld){const p=dailyPickRecord(isoToday(),world);return Number(p.score||0)+dailyGuessScoreTotal(isoToday(),world)}
+function renderDailyGames(){
+ renderWorldSelectors();const root=dailyGameState(),pick=dailyPickRecord(),guessDone=dailyGuessCompletedCount();dailyUpdateStreak();
+ const guessComplete=guessDone>=DAILY_GUESS_ROUNDS,completed=Number(Boolean(pick.completed))+Number(guessComplete),label=worlds[state.activeWorld]?.label||state.activeWorld;
+ const worldLabel=$('#dailyGamesWorldLabel');if(worldLabel)worldLabel.textContent=`${label} WORLD`;
+ if($('#dailyProgressValue'))$('#dailyProgressValue').textContent=`${completed}/2`;if($('#dailyProgressBar'))$('#dailyProgressBar').style.width=`${completed*50}%`;if($('#dailyStreakValue'))$('#dailyStreakValue').textContent=String(root.streak||0);if($('#dailyPointsValue'))$('#dailyPointsValue').textContent=String(dailyTodayPoints());
+ const switcher=$('#dailyWorldSwitcher');if(switcher){switcher.innerHTML=worldOrder.map(w=>`<button class="${w===state.activeWorld?'active':''}" data-daily-world="${w}"><span>${worlds[w].label}</span><small>${w===state.activeWorld?'ACTIVE WORLD':'OPEN WORLD'}</small></button>`).join('');$$('[data-daily-world]').forEach(b=>b.onclick=()=>{const next=b.dataset.dailyWorld;if(!next||next===state.activeWorld)return;state.dailyGuessRound=1;state.dailyGuessRuntime=null;state.dailyGuessSelected=null;void loadWorld(next).then(()=>{if($('.page.active')?.id==='daily-games')renderDailyGames()})})}
+ const pickBtn=$('[data-daily-preview="pickem"]'),guessBtn=$('[data-daily-preview="guess"]');if(pickBtn){pickBtn.textContent=pick.completed?(pick.waived?'NO GAMES TODAY →':'PICK\'EM COMPLETE ✓'):(Object.keys(pick.picks||{}).length?'CONTINUE PICK\'EM →':'PLAY PICK\'EM →');pickBtn.onclick=()=>{state.dailyPickemMode='today';state.dailyPickemDate=isoToday();show('daily-pickem')}}if(guessBtn){const next=Math.min(DAILY_GUESS_ROUNDS,guessDone+1);guessBtn.textContent=guessComplete?'5/5 COMPLETE ✓':`${guessDone?`CONTINUE ${guessDone}/5`:`PLAY PLAYER 1/5`} →`;guessBtn.onclick=()=>{state.dailyGuessRound=next;state.dailyGuessRuntime=null;state.dailyGuessSelected=null;show('daily-guess')}}
+ save();
+}
+function etNowParts(){const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).formatToParts(new Date());const o={};parts.forEach(x=>o[x.type]=x.value);return{date:`${o.year}-${o.month}-${o.day}`,minutes:Number(o.hour)*60+Number(o.minute)}}
+function gameStartMinutes(g){const m=String(g?.start_time||'').match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);if(!m)return null;let h=Number(m[1])%12;if(m[3].toUpperCase()==='PM')h+=12;return h*60+Number(m[2])}
+function dailyGameMinuteStamp(date,minutes){
+ const p=String(date||'').split('-').map(Number);if(p.length!==3||p.some(x=>!Number.isFinite(x)))return null;
+ return Math.floor(Date.UTC(p[0],p[1]-1,p[2])/60000)+Number(minutes||0)
+}
+function dailyGameLocked(g){
+ if(isLive(g)||isFinal(g))return true;
+ const start=gameStartMinutes(g);if(start===null)return false;
+ const gameStamp=dailyGameMinuteStamp(g?.game_date,start);if(gameStamp===null)return false;
+ const now=etNowParts(),nowStamp=dailyGameMinuteStamp(now.date,now.minutes);if(nowStamp===null)return false;
+ return nowStamp>=gameStamp-60
+}
+function dailyGameKey(g){return String(g.id||`${g.game_date}|${g.away_team}|${g.home_team}|${g.start_time||''}`)}
+function dailyActualOutcome(g){if(!isFinal(g)||g.home_score===null||g.home_score===undefined||g.away_score===null||g.away_score===undefined)return null;const h=Number(g.home_score),a=Number(g.away_score);return h>a?'home':a>h?'away':'draw'}
+function normalizeDailyPick(p){
+ if(!p)return null;
+ if(typeof p==='string')return{outcome:p,home_score:null,away_score:null};
+ return{outcome:String(p.outcome||p.pick||''),home_score:p.home_score===''||p.home_score===null||p.home_score===undefined?null:Number(p.home_score),away_score:p.away_score===''||p.away_score===null||p.away_score===undefined?null:Number(p.away_score)}
+}
+function dailyPickOutcomeFromScore(h,a){h=Number(h);a=Number(a);if(!Number.isFinite(h)||!Number.isFinite(a))return'';return h>a?'home':a>h?'away':'draw'}
+function dailyPickHasExact(p){p=normalizeDailyPick(p);return Boolean(p&&Number.isInteger(p.home_score)&&p.home_score>=0&&Number.isInteger(p.away_score)&&p.away_score>=0)}
+function dailyPickMade(p){p=normalizeDailyPick(p);return Boolean(p?.outcome)}
+function gradeDailyPickem(games,rec){
+ let score=0,correct=0,graded=0,exact=0;const picks=rec.submittedPicks||{};
+ games.forEach(g=>{
+  const actual=dailyActualOutcome(g),p=normalizeDailyPick(picks[dailyGameKey(g)]);if(!actual||!p?.outcome)return;
+  graded++;
+  const exactHit=dailyPickHasExact(p)&&Number(g.home_score)===p.home_score&&Number(g.away_score)===p.away_score;
+  if(exactHit){score+=20;correct++;exact++;return}
+  if(p.outcome===actual){score+=10;correct++}
+ });
+ rec.score=score;return{score,correct,graded,exact,made:games.filter(g=>dailyPickMade(picks[dailyGameKey(g)])).length,total:games.length}
+}
+function pickemCacheKey(world,date){return `${world}|${date}`}
+async function fetchDailyPickemDate(date,world=state.activeWorld){const key=pickemCacheKey(world,date);if(Array.isArray(state.dailyPickemCache[key]))return state.dailyPickemCache[key];const payload=await jfetch(query('/api/games-date',{division:world,date}),{items:[]},2600);const items=Array.isArray(payload)?payload:(payload?.items||[]);state.dailyPickemCache[key]=items;return items}
+async function loadDailyPickemForDate(date=state.dailyPickemDate){const world=state.activeWorld,key=pickemCacheKey(world,date);if(Array.isArray(state.dailyPickemCache[key])){renderDailyPickem();return}state.dailyPickemLoading=true;renderDailyPickem();await fetchDailyPickemDate(date,world);if(world!==state.activeWorld||date!==state.dailyPickemDate)return;state.dailyPickemLoading=false;renderDailyPickem()}
+async function setDailyPickemMode(mode){state.dailyPickemMode=mode;if(mode==='today'){state.dailyPickemDate=isoToday();renderDailyPickem();return loadDailyPickemForDate(state.dailyPickemDate)}state.dailyPickemLoading=true;renderDailyPickem();const offsets=mode==='upcoming'?[1,2,3,4,5,6,7]:[-1,-2,-3,-4,-5,-6,-7];const world=state.activeWorld;const results=await Promise.all(offsets.map(async off=>{const date=isoShiftDate(isoToday(),off);return{date,items:await fetchDailyPickemDate(date,world)}}));if(world!==state.activeWorld)return;const found=results.find(x=>mode==='results'?x.items.some(isFinal):x.items.length)||results[0];state.dailyPickemDate=found.date;state.dailyPickemLoading=false;renderDailyPickem()}
+function renderDailyPickem(){
+ renderWorldSelectors();
+ const world=state.activeWorld,label=worlds[world]?.label||world,date=state.dailyPickemDate||isoToday(),key=pickemCacheKey(world,date),games=state.dailyPickemCache[key];
+ if($('#dailyPickemWorldBadge'))$('#dailyPickemWorldBadge').textContent=label;
+ if($('#dailyPickemWorldCopy'))$('#dailyPickemWorldCopy').textContent=`Pick every ${label} match your way — quick winner or exact score. Picks lock 1 hour before kickoff.`;
+ if($('#dailyPickemDate'))$('#dailyPickemDate').value=date;
+ if($('#dailyPickemDateLabel'))$('#dailyPickemDateLabel').textContent=dailyNiceDate(date);
+ $$('[data-pickem-mode]').forEach(b=>b.classList.toggle('active',b.dataset.pickemMode===state.dailyPickemMode));
+ const wrap=$('#dailyPickemGames');if(!wrap)return;
+ if(!Array.isArray(games)){wrap.innerHTML='<div class="daily-loading">Loading matches…</div>';if(!state.dailyPickemLoading)setTimeout(()=>loadDailyPickemForDate(date),0);return}
+ const rec=dailyPickRecord(date,world);
+ if(date===isoToday()&&games.length===0){rec.waived=true;rec.completed=true}
+ else if(date===isoToday()&&games.length){rec.waived=false;rec.completed=games.every(g=>dailyPickMade(rec.submittedPicks[dailyGameKey(g)]))}
+ const grade=gradeDailyPickem(games,rec);
+ if($('#dailyPickemScore'))$('#dailyPickemScore').textContent=grade.score;
+ if($('#dailyPickemMade'))$('#dailyPickemMade').textContent=`${grade.made}/${grade.total}`;
+ if($('#dailyPickemCorrect'))$('#dailyPickemCorrect').textContent=String(grade.correct);
+ if($('#dailyPickemStatus'))$('#dailyPickemStatus').textContent=games.length?(games.every(dailyGameLocked)?'LOCKED':rec.submitted?'SUBMITTED':'OPEN'):'NO GAMES';
+ if($('#dailyPickemStatusSub'))$('#dailyPickemStatusSub').textContent=games.length?(rec.submitted?'Editable until 1 hour before each kickoff':'Submit picks to make them official · locks 1 hour before kickoff'):'This day does not count against your streak';
+ const cleanPickMap=obj=>Object.fromEntries(Object.entries(obj||{}).filter(([,v])=>dailyPickMade(v)).sort(([a],[b])=>a.localeCompare(b)).map(([k,v])=>[k,normalizeDailyPick(v)]));
+ const samePick=(a,b)=>JSON.stringify(normalizeDailyPick(a))===JSON.stringify(normalizeDailyPick(b));
+ const draftMap=cleanPickMap(rec.picks),submittedMap=cleanPickMap(rec.submittedPicks);
+ const hasChanges=JSON.stringify(draftMap)!==JSON.stringify(submittedMap);
+ if(!games.length){
+  wrap.innerHTML=`<div class="daily-empty"><div class="daily-empty-icon">⚽</div><h3>No ${label} matches stored for this date.</h3><p>Use the date arrows or Upcoming to find the next matchday.</p></div>`;
+ }else{
+  const cards=games.map((g,index)=>{
+   const k=dailyGameKey(g),locked=dailyGameLocked(g),actual=dailyActualOutcome(g),final=Boolean(actual);
+   const draftPick=normalizeDailyPick(rec.picks[k]),submittedPick=normalizeDailyPick(rec.submittedPicks[k]);
+   const pick=(locked||final)?submittedPick:draftPick;
+   const home=String(g.home_team||'Home'),away=String(g.away_team||'Away');
+   const homeMeta=teamMeta(home),awayMeta=teamMeta(away);
+   const homeAbbr=homeMeta?.abbreviation||home.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+   const awayAbbr=awayMeta?.abbreviation||away.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase();
+   const pickClass=o=>pick?.outcome===o?(final?(actual===o?'selected correct':'selected wrong'):'selected'):'';
+   const disabled=locked?'disabled':'';
+   const exactHit=final&&submittedPick&&dailyPickHasExact(submittedPick)&&Number(g.home_score)===submittedPick.home_score&&Number(g.away_score)===submittedPick.away_score;
+   const outcomeHit=final&&submittedPick?.outcome===actual;
+   const earned=exactHit?20:outcomeHit?10:0;
+   const conference=[gameConference(g,'home'),gameConference(g,'away')].filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).join(' · ');
+   const resultBlock=final?`<div class="college-pick-result"><small>FINAL</small><strong>${g.home_score} <span>–</span> ${g.away_score}</strong></div>`:`<div class="college-pick-time"><small>${g.game_date===isoToday()?'TODAY':'MATCHDAY'}</small><strong>${g.start_time||'TBD'}</strong>${locked?'<span>LOCKED · 1H BEFORE</span>':''}</div>`;
+   const official=submittedPick?.outcome?`<small class="pick-official">${rec.submitted?'SUBMITTED':'SAVED'}</small>`:'';
+   const changed=!locked&&!final&&!samePick(draftPick,submittedPick);
+   const summaryPick=(locked||final)?submittedPick:draftPick;
+   const summary=summaryPick?.outcome?`<div class="college-your-pick"><span>YOUR PICK ${changed?'<i>UNSUBMITTED CHANGE</i>':official}</span><b>${dailyPickHasExact(summaryPick)?`${homeAbbr} ${summaryPick.home_score}–${summaryPick.away_score} ${awayAbbr}`:(summaryPick.outcome==='home'?`${home} to win`:summaryPick.outcome==='away'?`${away} to win`:'Draw')}</b>${final?`<em class="${earned===20?'exact':earned===10?'right':'miss'}">${earned===20?'EXACT SCORE':earned===10?'CORRECT OUTCOME':'MISS'} · +${earned}</em>`:''}${!locked&&!final?`<button class="college-clear-pick" data-clear-pick="${k}">CLEAR PICK</button>`:''}</div>`:`<div class="college-your-pick empty"><span>YOUR PICK</span><b>Not selected yet</b></div>`;
+   return `<article class="college-pick-row ${final?'final':''}" data-college-pick-index="${index}">
+    <div class="college-pick-meta"><span class="college-match-no">${String(index+1).padStart(2,'0')}</span><div><b>${g.conference_game?'CONFERENCE MATCH':'COLLEGE MATCH'}</b><small>${conference||label}</small></div>${resultBlock}</div>
+    <div class="college-matchup">
+      <div class="college-team home"><div><strong>${home}</strong><small>HOME</small></div><span class="college-team-mark">${homeAbbr.slice(0,3)}</span></div>
+      <div class="college-vs">VS</div>
+      <div class="college-team away"><span class="college-team-mark">${awayAbbr.slice(0,3)}</span><div><strong>${away}</strong><small>AWAY</small></div></div>
+    </div>
+    <div class="college-pick-actions">
+      <div class="college-pick-section"><div class="college-pick-label"><span>QUICK PICK</span><small>Winner only · 10 pts · click again to clear</small></div><div class="college-winner-buttons">
+       <button ${disabled} class="college-winner ${pickClass('home')}" data-pickem-game="${k}" data-pickem-pick="home"><span>1</span><b>${homeAbbr}</b></button>
+       <button ${disabled} class="college-winner draw ${pickClass('draw')}" data-pickem-game="${k}" data-pickem-pick="draw"><span>X</span><b>DRAW</b></button>
+       <button ${disabled} class="college-winner ${pickClass('away')}" data-pickem-game="${k}" data-pickem-pick="away"><span>2</span><b>${awayAbbr}</b></button>
+      </div></div>
+      <div class="college-exact-section"><div class="college-pick-label"><span>EXACT SCORE</span><small>Hit the score · 20 pts</small></div><div class="college-score-inputs">
+       <label><small>${homeAbbr}</small><input ${disabled} inputmode="numeric" pattern="[0-9]*" min="0" max="30" type="number" data-exact-home="${k}" value="${dailyPickHasExact(pick)?pick.home_score:''}" placeholder="–"></label>
+       <span>:</span>
+       <label><small>${awayAbbr}</small><input ${disabled} inputmode="numeric" pattern="[0-9]*" min="0" max="30" type="number" data-exact-away="${k}" value="${dailyPickHasExact(pick)?pick.away_score:''}" placeholder="–"></label>
+      </div></div>
+      ${summary}
+    </div>
+   </article>`
+  }).join('');
+  const openGames=games.filter(g=>!dailyGameLocked(g));
+  const draftCount=openGames.filter(g=>dailyPickMade(rec.picks[dailyGameKey(g)])).length;
+  const submitLabel=rec.submitted?(hasChanges?'UPDATE PICKS':'PICKS SUBMITTED ✓'):'SUBMIT PICKS';
+  const submitDisabled=!openGames.length||(!hasChanges&&rec.submitted)||(!draftCount&&!rec.submitted);
+  const submitCopy=rec.submitted?(hasChanges?'You have changes that are not official yet. Submit again before each match locks.':'Your picks are official. You can still edit and resubmit until 1 hour before kickoff.'):'Selections are drafts until you submit them. You may leave any match blank.';
+  wrap.innerHTML=cards+`<section class="pickem-submit-panel ${rec.submitted&&!hasChanges?'submitted':''}"><div><span class="pickem-submit-kicker">PICK SHEET</span><h3>${rec.submitted?'Your picks are on the board.':'Ready to lock in your calls?'}</h3><p>${submitCopy}</p><div class="pickem-submit-meta"><span>${draftCount} current pick${draftCount===1?'':'s'}</span><span>🔒 Locks 1 hour before kickoff</span><span>20 exact · 10 outcome · 0 miss</span></div></div><button id="submitDailyPickem" class="pickem-submit-btn" ${submitDisabled?'disabled':''}>${submitLabel}</button></section>`;
+ }
+ $$('[data-pickem-game]').forEach(b=>b.onclick=()=>{
+  const k=b.dataset.pickemGame,g=games.find(x=>dailyGameKey(x)===k);if(!g||dailyGameLocked(g)){toast('Picks lock 1 hour before kickoff.');return}
+  const current=normalizeDailyPick(rec.picks[k]);
+  if(current?.outcome===b.dataset.pickemPick&&!dailyPickHasExact(current))delete rec.picks[k];
+  else rec.picks[k]={outcome:b.dataset.pickemPick,home_score:null,away_score:null};
+  save();renderDailyPickem()
+ });
+ $$('[data-clear-pick]').forEach(b=>b.onclick=()=>{const k=b.dataset.clearPick,g=games.find(x=>dailyGameKey(x)===k);if(!g||dailyGameLocked(g))return;delete rec.picks[k];save();renderDailyPickem()});
+ const saveExact=(k)=>{
+  const g=games.find(x=>dailyGameKey(x)===k);if(!g||dailyGameLocked(g)){toast('Picks lock 1 hour before kickoff.');return}
+  const h=$(`[data-exact-home="${CSS.escape(k)}"]`),a=$(`[data-exact-away="${CSS.escape(k)}"]`);if(!h||!a)return;
+  const hv=h.value,av=a.value;
+  if(hv===''||av===''){if(hv===''&&av===''){delete rec.picks[k];save();renderDailyPickem()}return}
+  const hs=Math.max(0,Math.min(30,Number(hv))),as=Math.max(0,Math.min(30,Number(av)));if(!Number.isFinite(hs)||!Number.isFinite(as))return;
+  rec.picks[k]={outcome:dailyPickOutcomeFromScore(hs,as),home_score:Math.trunc(hs),away_score:Math.trunc(as)};
+  save();renderDailyPickem()
+ };
+ $$('[data-exact-home],[data-exact-away]').forEach(input=>input.onchange=()=>saveExact(input.dataset.exactHome||input.dataset.exactAway));
+ const submit=$('#submitDailyPickem');if(submit)submit.onclick=()=>{
+  const next={...rec.submittedPicks};
+  games.forEach(g=>{const k=dailyGameKey(g);if(dailyGameLocked(g))return;const p=normalizeDailyPick(rec.picks[k]);if(p?.outcome)next[k]=p;else delete next[k]});
+  rec.submittedPicks=next;rec.submitted=true;rec.submittedAt=new Date().toISOString();
+  rec.completed=date===isoToday()?games.every(g=>dailyPickMade(rec.submittedPicks[dailyGameKey(g)])):rec.completed;
+  gradeDailyPickem(games,rec);dailyUpdateStreak(world);save();toast('Picks submitted. You can edit and resubmit until 1 hour before kickoff.');renderDailyPickem()
+ };
+ if($('#dailyPickemPrev'))$('#dailyPickemPrev').onclick=()=>{state.dailyPickemMode='custom';state.dailyPickemDate=isoShiftDate(date,-1);renderDailyPickem();loadDailyPickemForDate(state.dailyPickemDate)};
+ if($('#dailyPickemNext'))$('#dailyPickemNext').onclick=()=>{state.dailyPickemMode='custom';state.dailyPickemDate=isoShiftDate(date,1);renderDailyPickem();loadDailyPickemForDate(state.dailyPickemDate)};
+ if($('#dailyPickemDate'))$('#dailyPickemDate').onchange=e=>{state.dailyPickemMode='custom';state.dailyPickemDate=e.target.value||isoToday();renderDailyPickem();loadDailyPickemForDate(state.dailyPickemDate)};
+ $$('[data-pickem-mode]').forEach(b=>b.onclick=()=>setDailyPickemMode(b.dataset.pickemMode));dailyUpdateStreak(world);save();
+}
+
+function dailyHash(text){let h=2166136261;for(const ch of String(text)){h^=ch.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function dailyPlayerKey(p){return String(p?.id??`${String(p?.name||'').trim().toLowerCase()}|${String(p?.division||state.activeWorld)}`)}
+function dailyQuestionAvailable(type,rt){const a=rt?.answer||{},pool=rt?.pool||{};if(type==='position')return (a.positions||[a.position]).filter(Boolean).length>0;if(type==='conference')return Array.isArray(pool.conferences)&&pool.conferences.length>0&&(a.conferences||[a.conference]).filter(Boolean).length>0;if(type==='school')return Array.isArray(pool.schools)&&pool.schools.length>0;if(type==='class')return Array.isArray(pool.classes)&&pool.classes.length>0&&Boolean(a.class_year);if(type==='season'||type==='era')return Array.isArray(pool.seasons)&&pool.seasons.length>1;if(type==='multiple')return Array.isArray(a.seasons)&&a.seasons.length>0;if(type==='tournament')return Boolean(pool.has_tournament)&&a.tournament_team!==null&&a.tournament_team!==undefined;if(type==='ranked')return Boolean(pool.has_ranked)&&a.ranked_team!==null&&a.ranked_team!==undefined;return false}
+async function loadDailyGuess(){const world=state.activeWorld,date=isoToday(),round=Math.max(1,Math.min(DAILY_GUESS_ROUNDS,Number(state.dailyGuessRound)||1));if(state.dailyGuessLoading)return;if(state.dailyGuessRuntime?.world===world&&state.dailyGuessRuntime?.date===date&&Number(state.dailyGuessRuntime?.round)===round){renderDailyGuess();return}state.dailyGuessLoading=true;renderDailyGuess();const payload=await jfetch(query('/api/guess-player/today',{division:world,date,round}),null,5000);if(world!==state.activeWorld||round!==state.dailyGuessRound){state.dailyGuessLoading=false;return}if(!payload?.answer){state.dailyGuessRuntime={world,date,round,error:payload?.error||'No player data is available for this world yet.'};state.dailyGuessLoading=false;renderDailyGuess();return}const rec=dailyGuessRecord(date,world,round),answer=payload.answer,key=dailyPlayerKey(answer);if(rec.answerKey&&String(rec.answerKey)!==key){rec.questions=[];rec.guesses=[];rec.completed=false;rec.solved=false;rec.failed=false;rec.score=0}rec.answerKey=key;state.dailyGuessRuntime={world,date,round,answer,pool:payload.pool||{},poolCount:Number(payload.pool_count||0),minSeason:Number(payload.min_season||2026),maxSeason:Number(payload.max_season||2026),testMode:Boolean(payload.test_mode)};state.dailyGuessLoading=false;save();renderDailyGuess()}
+function dailyQuestionOptions(type,rt){const pool=rt?.pool||{};if(type==='position')return[['FW','Forward'],['MF','Midfielder'],['DF','Defender'],['GK','Goalkeeper']];if(type==='class')return (pool.classes||['Freshman','Sophomore','Junior','Senior','Graduate']).map(x=>[classNorm(x)||x,classNorm(x)||x]);if(type==='conference')return (pool.conferences||[]).map(x=>[x,x]);if(type==='school')return (pool.schools||[]).slice(0,700).map(x=>[x,x]);if(type==='season')return (pool.seasons||[]).map(x=>[String(x),String(x)]);if(type==='era'){const ys=(pool.seasons||[]).map(Number).sort((a,b)=>a-b);return ys.slice(1).map(x=>[String(x),`${x} or later`])}if(type==='multiple')return[['yes','More than one season']];if(type==='tournament')return[['yes','Reached the national tournament']];if(type==='ranked')return[['yes','Played for a ranked team']];return[]}
+function dailyQuestionText(type,value){if(type==='position')return `Was the player listed as a ${value==='FW'?'Forward':value==='MF'?'Midfielder':value==='DF'?'Defender':'Goalkeeper'}?`;if(type==='class')return `Was the player listed as a ${value} in the latest season in this pool?`;if(type==='conference')return `Did the player compete in ${value}?`;if(type==='school')return `Did the player play for ${value}?`;if(type==='season')return `Did the player play college soccer in ${value}?`;if(type==='era')return `Did the player play college soccer in or after ${value}?`;if(type==='multiple')return 'Did the player appear in more than one college season?';if(type==='tournament')return 'Did the player reach the national tournament?';if(type==='ranked')return 'Did the player play for a nationally ranked team?';return 'Question'}
+function dailyQuestionAnswer(answer,type,value){if(type==='position')return (answer.positions||[answer.position]).map(normalizePosition).includes(value);if(type==='class')return classNorm(answer.class_year)===value;if(type==='conference')return (answer.conferences||[answer.conference]).map(x=>String(x||'').toLowerCase()).includes(String(value).toLowerCase());if(type==='school')return (answer.schools||[answer.school]).map(x=>String(x||'').toLowerCase()).includes(String(value).toLowerCase());if(type==='season')return (answer.seasons||[]).map(Number).includes(Number(value));if(type==='era')return Number(answer.last_season||answer.season||0)>=Number(value);if(type==='multiple')return Boolean(answer.multiple_seasons);if(type==='tournament')return Boolean(answer.tournament_team);if(type==='ranked')return Boolean(answer.ranked_team);return false}
+function dailyGuessPotentialScore(rec){if(rec.failed)return 0;if(rec.solved)return Number(rec.score||0);return Math.max(20,100-rec.questions.length*4-rec.guesses.length*15)}
+function populateDailyQuestionValues(){const rt=state.dailyGuessRuntime,typeEl=$('#guessQuestionType'),el=$('#guessQuestionValue');if(!el||!rt?.answer||!typeEl)return;[...typeEl.options].forEach(o=>{const ok=dailyQuestionAvailable(o.value,rt);o.hidden=!ok;o.disabled=!ok});if(typeEl.selectedOptions[0]?.disabled){const first=[...typeEl.options].find(o=>!o.disabled);if(first)typeEl.value=first.value}const type=typeEl.value,opts=dailyQuestionOptions(type,rt);el.innerHTML=opts.length?opts.map(([v,l])=>`<option value="${String(v).replace(/"/g,'&quot;')}">${l}</option>`).join(''):'<option value="">No options available</option>'}
+function revealDailyMystery(rt,rec){
+ const a=rt.answer;if(!a)return'';
+ const seasons=(a.seasons||[]).map(Number).sort((x,y)=>x-y),seasonLabel=seasons.length>1?`${seasons[0]}–${seasons[seasons.length-1]}`:(seasons[0]||a.season||'—');
+ const schools=(a.schools||[a.school]).filter(Boolean),conferences=(a.conferences||[a.conference]).filter(Boolean),pos=normalizePosition(a.position)||'—';
+ const posLabel=pos==='DF'?'Defender':pos==='MF'?'Midfielder':pos==='FW'?'Forward':pos==='GK'?'Goalkeeper':pos;
+ const initials=name=>String(name||'').split(/\s+/).filter(Boolean).slice(0,3).map(x=>x[0]).join('').toUpperCase();
+ const nameParts=String(a.name||'').trim().split(/\s+/);
+ const firstName=nameParts.shift()||'';
+ const lastName=nameParts.join(' ');
+ const schoolCards=schools.map(s=>{
+  let years='';
+
+  if(String(a.name||'').toLowerCase()==='pedro arcoverde'){
+    if(s.toLowerCase().includes('missouri state')){
+      years='2023–2024';
+    }else if(s.toLowerCase().includes('florida gulf coast')){
+      years='2025';
+    }
+  }
+
+  return `
+    <div class="reveal-history-card">
+      <span>${initials(s)}</span>
+
+      <div>
+        <small>SCHOOL</small>
+        <b>${s}</b>
+
+        ${years ? `<div class="reveal-school-years">${years}</div>` : ''}
+      </div>
+    </div>
+  `;
+}).join('');
+ const confCards=conferences.map(c=>`<div class="reveal-conference-chip"><span>◆</span><b>${c}</b></div>`).join('');
+ return `<div class="revealed-player-pro ${rec.solved?'solved':'revealed'}">
+   <div class="reveal-visual-panel">
+     <div class="reveal-status-pill"><span>${rec.solved?'✓':'!'}</span>${rec.solved?'SOLVED':'ANSWER REVEALED'}</div>
+     <div class="reveal-stadium-lines"></div>
+     <div class="reveal-generic-player" aria-hidden="true"><i></i><b>${pos}</b></div>
+     <div class="reveal-visual-caption"><small>COLLEGE SOCCER PLAYER</small><strong>${posLabel}</strong></div>
+   </div>
+   <div class="reveal-info-panel">
+     <div class="reveal-kicker">${rec.solved?'YOU GOT IT':'THE CORRECT PLAYER WAS'}</div>
+     <h3 class="reveal-player-name">
+      <span class="reveal-first-name">${firstName}</span>
+      <span class="reveal-last-name">${lastName}</span>
+    </h3>
+     <div class="reveal-position-line"><span>${posLabel}</span><b>${pos}</b></div>
+     <div class="reveal-stat-grid">
+       <div><small>LATEST CLASS</small><strong>${classNorm(a.class_year)||'—'}</strong></div>
+       <div><small>COLLEGE YEARS</small><strong>${seasonLabel}</strong></div>
+       <div><small>POSITION</small><strong>${posLabel}</strong></div>
+     </div>
+     <div class="reveal-section"><div class="reveal-section-title">COLLEGE HISTORY</div><div class="reveal-history-grid">${schoolCards||'<span class="reveal-muted">School history unavailable</span>'}</div></div>
+     <div class="reveal-section"><div class="reveal-section-title">CONFERENCES</div><div class="reveal-conferences">${confCards||'<span class="reveal-muted">Conference unavailable</span>'}</div></div>
+   </div>
+ </div>
+ <div class="reveal-outcome-strip ${rec.solved?'solved':'revealed'}"><div><b>${rec.solved?'Great read.':'Tough one.'}</b><span>${rec.solved?`You identified Player ${state.dailyGuessRound||1} of ${DAILY_GUESS_ROUNDS}.`:`The answer is now unlocked. Player ${state.dailyGuessRound||1} of ${DAILY_GUESS_ROUNDS} is complete.`}</span></div><strong>${rec.solved?`+${Number(rec.score||0)} pts`:'0 pts'}</strong></div>`
+}
+function renderDailyGuess(){
+ renderWorldSelectors();const world=state.activeWorld,label=worlds[world]?.label||world,round=Math.max(1,Math.min(DAILY_GUESS_ROUNDS,Number(state.dailyGuessRound)||1)),rec=dailyGuessRecord(isoToday(),world,round),root=dailyGameState(world),rt=state.dailyGuessRuntime,done=dailyGuessCompletedCount();
+ if($('#dailyGuessWorldBadge'))$('#dailyGuessWorldBadge').textContent=label;if($('#dailyGuessQuestionCount'))$('#dailyGuessQuestionCount').textContent=`${rec.questions.length}/10`;if($('#dailyGuessAttempts'))$('#dailyGuessAttempts').textContent=String(Math.max(0,3-rec.guesses.length));if($('#dailyGuessScore'))$('#dailyGuessScore').textContent=String(dailyGuessPotentialScore(rec));if($('#dailyGuessStreak'))$('#dailyGuessStreak').textContent=`${root.streak||0} 🔥`;
+ const roundNav=$('#dailyGuessRoundNav');if(roundNav){roundNav.innerHTML=Array.from({length:DAILY_GUESS_ROUNDS},(_,i)=>{const n=i+1,r=dailyGuessRecord(isoToday(),world,n);return `<button class="${n===round?'active':''} ${r.completed?'completed':''}" data-guess-round="${n}"><small>PLAYER</small><b>${n}</b><span>${r.completed?(r.solved?'✓':'•'):''}</span></button>`}).join('');$$('[data-guess-round]').forEach(b=>b.onclick=()=>{const n=Number(b.dataset.guessRound);if(n===state.dailyGuessRound)return;state.dailyGuessRound=n;state.dailyGuessRuntime=null;state.dailyGuessSelected=null;if($('#dailyGuessSearch'))$('#dailyGuessSearch').value='';loadDailyGuess()})}
+ if(!rt||rt.world!==world||rt.date!==isoToday()||Number(rt.round)!==round){if($('#dailyGuessWorldCopy'))$('#dailyGuessWorldCopy').textContent=`Player ${round} of ${DAILY_GUESS_ROUNDS} · today's mystery player comes only from the ${label} world.`;if($('#mysteryWorldText'))$('#mysteryWorldText').textContent=`${label} · loading player pool`;if($('#guessQuestionHistory'))$('#guessQuestionHistory').innerHTML='<div class="daily-loading">Loading today\'s player…</div>';if($('#mysteryChallengeTag'))$('#mysteryChallengeTag').textContent=`PLAYER ${round} OF ${DAILY_GUESS_ROUNDS}`;if(!state.dailyGuessLoading)setTimeout(()=>loadDailyGuess(),0);return}
+ if(rt.error){if($('#dailyGuessWorldCopy'))$('#dailyGuessWorldCopy').textContent=`${label} historical player pool`;if($('#mysteryWorldText'))$('#mysteryWorldText').textContent=`${label} · challenge unavailable`;if($('#guessQuestionHistory'))$('#guessQuestionHistory').innerHTML=`<div class="daily-empty"><h3>Challenge unavailable</h3><p>${rt.error}</p></div>`;return}
+ const range=rt.minSeason===rt.maxSeason?String(rt.maxSeason):`${rt.minSeason}–${rt.maxSeason}`;if($('#dailyGuessWorldCopy'))$('#dailyGuessWorldCopy').textContent=`Player ${round} of ${DAILY_GUESS_ROUNDS} · ${label} world · ${range} pool.`;if($('#mysteryWorldText'))$('#mysteryWorldText').textContent=`${label} · ${range} player pool${rt.poolCount?` · ${rt.poolCount} players`:''}${rt.testMode?' · TEST PLAYER':''}`;
+ const reveal=$('#mysteryReveal'),visual=$('#mysteryVisual'),guessLayout=$('.daily-guess-layout'),mysteryCard=$('.mystery-player-card'),questionPanel=$('.guess-question-panel'),finalPanel=$('.final-guess-panel');
+ const setPanelHeading=(panel,eyebrow,title)=>{if(!panel)return;const e=panel.querySelector('.panel-title .eyebrow'),h=panel.querySelector('.panel-title h2');if(e)e.textContent=eyebrow;if(h)h.textContent=title};
+ if(rec.completed){
+  guessLayout?.classList.add('completed');mysteryCard?.classList.add('completed');questionPanel?.classList.add('completed');finalPanel?.classList.add('completed');
+  setPanelHeading(questionPanel,rec.solved?'HOW YOU SOLVED IT':'HOW IT ENDED','Your game recap.');setPanelHeading(finalPanel,'YOUR GUESSES',rec.solved?'Final attempts.':'Attempts used.');
+  if(reveal){reveal.classList.remove('hidden');reveal.innerHTML=revealDailyMystery(rt,rec)+(round<DAILY_GUESS_ROUNDS?`<button id="nextDailyGuess" class="btn btn-primary btn-full guess-next-btn">NEXT PLAYER ${round+1}/${DAILY_GUESS_ROUNDS} →</button>`:`<button id="finishDailyGuess" class="btn btn-primary btn-full guess-next-btn">ALL 5 PLAYERS COMPLETE →</button>`)}
+  if(visual)visual.classList.add('hidden');if($('#mysteryTitle'))$('#mysteryTitle').textContent=rec.solved?'Solved!':'Answer revealed';if($('#mysteryChallengeTag'))$('#mysteryChallengeTag').textContent=`${rec.solved?'CORRECT ✓':'REVEALED'} · ${round}/${DAILY_GUESS_ROUNDS}`;
+  const next=$('#nextDailyGuess');
+
+if(next) next.onclick=()=>{
+  const nextRound=round+1;
+
+  /* Always start the next player as a fresh challenge. */
+  const root=dailyGameState(world);
+  const nextKey=dailyGuessKey(isoToday(),nextRound);
+  if(root?.guessByDate) delete root.guessByDate[nextKey];
+
+  state.dailyGuessRound=nextRound;
+  state.dailyGuessRuntime=null;
+  state.dailyGuessSelected=null;
+  state.dailyGuessLoading=false;
+
+  clearTimeout(state.dailyGuessSearchTimer);
+
+  const search=$('#dailyGuessSearch');
+  if(search) search.value='';
+
+  const suggestions=$('#dailyGuessSuggestions');
+  if(suggestions) suggestions.innerHTML='';
+
+  const selected=$('#dailyGuessSelected');
+  if(selected){
+    selected.innerHTML='';
+    selected.classList.add('hidden');
+  }
+
+  const questionHistory=$('#guessQuestionHistory');
+  if(questionHistory) questionHistory.innerHTML='<div class="data-empty">No questions asked yet.</div>';
+
+  const guessHistory=$('#dailyGuessHistory');
+  if(guessHistory) guessHistory.innerHTML='';
+
+  const questionType=$('#guessQuestionType');
+  if(questionType) questionType.selectedIndex=0;
+
+  const questionValue=$('#guessQuestionValue');
+  if(questionValue) questionValue.innerHTML='';
+
+  save();
+  loadDailyGuess();
+};
+}else{
+  guessLayout?.classList.remove('completed');mysteryCard?.classList.remove('completed');questionPanel?.classList.remove('completed');finalPanel?.classList.remove('completed');
+  setPanelHeading(questionPanel,'ASK A QUESTION','Narrow it down.');setPanelHeading(finalPanel,'FINAL GUESS','Name the player.');
+  if(reveal)reveal.classList.add('hidden');if(visual)visual.classList.remove('hidden');if($('#mysteryTitle'))$('#mysteryTitle').textContent='Who is it?';if($('#mysteryChallengeTag'))$('#mysteryChallengeTag').textContent=`PLAYER ${round} OF ${DAILY_GUESS_ROUNDS}${rt.testMode?' · TEST':''}`
+ }
+ const history=$('#guessQuestionHistory');if(history)history.innerHTML=rec.questions.length?rec.questions.map((q,i)=>`<div class="guess-history-row"><span>${i+1}</span><b>${q.text}</b><strong class="${q.answer?'yes':'no'}">${q.answer?'YES':'NO'}</strong></div>`).join(''):`<div class="data-empty">${rec.completed?'No questions were needed.':'No questions asked yet.'}</div>`;
+ const type=$('#guessQuestionType'),ask=$('#askGuessQuestion');if(type){type.disabled=rec.completed||rec.questions.length>=10;type.onchange=populateDailyQuestionValues}populateDailyQuestionValues();if($('#guessQuestionValue'))$('#guessQuestionValue').disabled=rec.completed||rec.questions.length>=10;if(ask){ask.disabled=rec.completed||rec.questions.length>=10;ask.onclick=askDailyQuestion}
+ const guesses=$('#dailyGuessHistory');if(guesses)guesses.innerHTML=rec.guesses.length?`<div class="wrong-guess-title">${rec.completed?'FINAL GUESSES':'YOUR GUESSES'}</div>`+rec.guesses.map((g,i)=>`<div class="wrong-guess-row ${g.correct?'correct':''}"><span>${g.correct?'✓':'✕'}</span><div><b>${g.name}</b><small>Guess ${i+1}${g.school?' · '+g.school:''}${g.years?' · '+g.years:''}</small></div></div>`).join(''):(rec.completed?'<div class="data-empty">No final guesses were used.</div>':'');
+ const input=$('#dailyGuessSearch'),submit=$('#submitDailyGuess'),selected=$('#dailyGuessSelected');if(input){input.disabled=rec.completed||rec.guesses.length>=3;input.oninput=()=>{state.dailyGuessSelected=null;if(selected)selected.classList.add('hidden');if(submit)submit.disabled=true;clearTimeout(state.dailyGuessSearchTimer);const q=input.value.trim();if(q.length<2){const w=$('#dailyGuessSuggestions');if(w)w.innerHTML='';return}state.dailyGuessSearchTimer=setTimeout(()=>searchDailyGuessPlayers(q),180)}}if(selected){if(state.dailyGuessSelected){selected.classList.remove('hidden');selected.innerHTML=`<b>${state.dailyGuessSelected.name}</b><span>${(state.dailyGuessSelected.schools||[state.dailyGuessSelected.school]).filter(Boolean).join(' · ')}</span>`}else selected.classList.add('hidden')}if(submit){submit.disabled=rec.completed||!state.dailyGuessSelected||rec.guesses.length>=3;submit.onclick=submitDailyPlayerGuess}
+ if(done>=DAILY_GUESS_ROUNDS)dailyUpdateStreak(world);save();
+}
+function askDailyQuestion(){const rt=state.dailyGuessRuntime,rec=dailyGuessRecord();if(!rt?.answer||rec.completed||rec.questions.length>=10)return;const type=$('#guessQuestionType')?.value,value=$('#guessQuestionValue')?.value;if(!value)return;const key=`${type}|${value}`;if(rec.questions.some(q=>q.key===key)){toast('You already asked that question.');return}rec.questions.push({key,type,value,text:dailyQuestionText(type,value),answer:dailyQuestionAnswer(rt.answer,type,value)});save();renderDailyGuess()}
+async function searchDailyGuessPlayers(q){const world=state.activeWorld,wrap=$('#dailyGuessSuggestions');if(!wrap)return;wrap.innerHTML='<div class="guess-search-loading">Searching historical player pool…</div>';const data=await jfetch(query('/api/guess-player/search',{division:world,q}),[],4000);if(state.activeWorld!==world)return;const items=(Array.isArray(data)?data:[]).slice(0,10);wrap.innerHTML=items.length?items.map((p,i)=>{const ys=(p.seasons||[]);const years=ys.length?`${ys[0]}${ys.length>1?'–'+ys[ys.length-1]:''}`:'';return `<button data-guess-result="${i}"><b>${p.name}</b><span>${(p.schools||[p.school]).filter(Boolean).join(' · ')}${years?' · '+years:''}</span></button>`}).join(''):'<div class="guess-search-loading">No players found in this world.</div>';$$('[data-guess-result]').forEach(b=>b.onclick=()=>{state.dailyGuessSelected=items[Number(b.dataset.guessResult)];wrap.innerHTML='';if($('#dailyGuessSearch'))$('#dailyGuessSearch').value=state.dailyGuessSelected.name;renderDailyGuess()})}
+function submitDailyPlayerGuess(){const rt=state.dailyGuessRuntime,rec=dailyGuessRecord(),p=state.dailyGuessSelected;if(!rt?.answer||!p||rec.completed||rec.guesses.length>=3)return;const norm=x=>String(x||'').trim().toLowerCase().replace(/\s+/g,' '),correct=norm(p.name)===norm(rt.answer.name),ys=(p.seasons||[]),years=ys.length?`${ys[0]}${ys.length>1?'–'+ys[ys.length-1]:''}`:'';rec.guesses.push({id:p.id,name:p.name,school:(p.schools||[p.school]).filter(Boolean).join(' · '),years,correct});state.dailyGuessSelected=null;if(correct){rec.solved=true;rec.completed=true;rec.score=Math.max(20,100-rec.questions.length*4-(rec.guesses.length-1)*15);toast(`Correct! +${rec.score} pts`)}else if(rec.guesses.length>=3){rec.failed=true;rec.completed=true;rec.score=0;toast('No guesses left — player revealed.')}else toast(`${3-rec.guesses.length} guesses remaining.`);dailyUpdateStreak();save();renderDailyGuess()}
 
 function renderDashboard(){
  renderProspects();
@@ -656,6 +1003,12 @@ function bind(){
     renderGames();
    }else if(currentPage==='competitions'){
     renderCompetitions();
+   }else if(currentPage==='daily-games'){
+    renderDailyGames();
+   }else if(currentPage==='daily-pickem'){
+    state.dailyPickemCache={};state.dailyPickemDate=isoToday();state.dailyPickemMode='today';renderDailyPickem();loadDailyPickemForDate(state.dailyPickemDate);
+   }else if(currentPage==='daily-guess'){
+    state.dailyGuessRuntime=null;state.dailyGuessSelected=null;renderDailyGuess();loadDailyGuess();
    }else{
     renderDashboard();
    }
@@ -664,11 +1017,11 @@ function bind(){
  if($('#filterDivision'))$('#filterDivision').onchange=e=>{state.marketVisibleCount=60;['filterPos','filterConf','filterSchool','filterClass'].forEach(id=>{const el=$('#'+id);if(el)el.value='all'});show('market');loadWorld(e.target.value).then(()=>{refreshMarketDependentFilters();if($('.page.active')?.id==='market')renderMarket()})};
  if($('#filterEntity'))$('#filterEntity').onchange=()=>{state.marketVisibleCount=60;$('#filterPos').value='all';$('#filterClass').value='all';state.marketContext={type:$('#filterEntity').value,position:'all',bench:false};refreshMarketDependentFilters('entity');renderMarket();setTimeout(()=>ensureMarketData($('#filterEntity').value,'all'),0)};if($('#filterPos'))$('#filterPos').onchange=()=>{state.marketVisibleCount=60;state.marketContext.position=$('#filterPos').value;refreshMarketDependentFilters('position');renderMarket();if(($('#filterEntity')?.value||'players')==='players')setTimeout(()=>ensureMarketData('players',$('#filterPos').value),0)};if($('#filterClass'))$('#filterClass').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('class');renderMarket()};if($('#filterConf'))$('#filterConf').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('conf');renderMarket()};if($('#filterSchool'))$('#filterSchool').onchange=()=>{state.marketVisibleCount=60;refreshMarketDependentFilters('school');renderMarket()};if($('#filterSort'))$('#filterSort').onchange=()=>{state.marketVisibleCount=60;renderMarket()};if($('#filterSearch'))$('#filterSearch').oninput=()=>{state.marketVisibleCount=60;renderMarket()};
  if($('#clearFilters'))$('#clearFilters').onclick=()=>{state.marketVisibleCount=60;$('#filterEntity').value='players';$('#filterPos').value=state.marketContext?.position||'all';$('#filterConf').value='all';$('#filterSchool').value='all';$('#filterClass').value='all';$('#filterSort').value='rating_desc';$('#filterSearch').value='';refreshMarketDependentFilters();renderMarket()};if($('#howScoring'))$('#howScoring').onclick=showScoring;if($('#confirmTeam'))$('#confirmTeam').onclick=()=>toast($('#confirmTeam').disabled?'Complete 11 starters + Head Coach + Assistant Coach first.':'Lineup confirmed for this world.');if($('#stadiumViewBtn'))$('#stadiumViewBtn').onclick=()=>toast('College field view is active.');if($('#openAnyMarket'))$('#openAnyMarket').onclick=()=>openMarketFor('players','all',false);if($('#backToLineup'))$('#backToLineup').onclick=()=>show('team');
- if($('#browsePredictions'))$('#browsePredictions').onclick=openPredictions;if($('#savePreviewPredictions'))$('#savePreviewPredictions').onclick=savePreview;if($('#viewAllResults'))$('#viewAllResults').onclick=()=>{state.gameFilter='all';state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#seeAllScores'))$('#seeAllScores').onclick=()=>{state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#gamesThisRound'))$('#gamesThisRound').onclick=()=>{state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#lineupReminder'))$('#lineupReminder').onclick=()=>{const on=sessionStorage.getItem('college_fantasy_v1_lineup_reminder')==='1';sessionStorage.setItem('college_fantasy_v1_lineup_reminder',on?'0':'1');$('#lineupReminder').textContent=on?'🔔 LINEUP REMINDER':'✓ REMINDER SET';toast(on?'Lineup reminder removed.':'Lineup reminder set for this session.');};if($('#marketSync'))$('#marketSync').onclick=syncNow;if($('#refreshNews'))$('#refreshNews').onclick=()=>refreshNewsLive(true,true);if($('#quickCreateLeague'))$('#quickCreateLeague').onclick=()=>show('competitions');
+ if($('#browsePredictions'))$('#browsePredictions').onclick=()=>{state.dailyPickemMode='today';state.dailyPickemDate=isoToday();show('daily-pickem')};if($('#savePreviewPredictions'))$('#savePreviewPredictions').onclick=savePreview;if($('#viewAllResults'))$('#viewAllResults').onclick=()=>{state.gameFilter='all';state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#seeAllScores'))$('#seeAllScores').onclick=()=>{state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#gamesThisRound'))$('#gamesThisRound').onclick=()=>{state.gameDate=isoToday();show('games');setGameDate(state.gameDate)};if($('#lineupReminder'))$('#lineupReminder').onclick=()=>{const on=sessionStorage.getItem('college_fantasy_v1_lineup_reminder')==='1';sessionStorage.setItem('college_fantasy_v1_lineup_reminder',on?'0':'1');$('#lineupReminder').textContent=on?'🔔 LINEUP REMINDER':'✓ REMINDER SET';toast(on?'Lineup reminder removed.':'Lineup reminder set for this session.');};if($('#marketSync'))$('#marketSync').onclick=syncNow;if($('#refreshNews'))$('#refreshNews').onclick=()=>refreshNewsLive(true,true);if($('#quickCreateLeague'))$('#quickCreateLeague').onclick=()=>show('competitions');
  $$('.news-tabs [data-news-filter]').forEach(b=>b.onclick=()=>{$$('.news-tabs button').forEach(x=>x.classList.remove('active'));b.classList.add('active');state.newsFilter=b.dataset.newsFilter;renderNews()});$$('.ranking-tabs [data-ranking-cat]').forEach(b=>b.onclick=()=>{state.rankingCat=b.dataset.rankingCat;state.rankingPage=1;$$('.ranking-tabs button').forEach(x=>x.classList.toggle('active',x===b));renderRankings()});$$('[data-ranking-cat-jump]').forEach(b=>b.onclick=()=>{state.rankingCat=b.dataset.rankingCatJump;state.rankingPage=1;$$('.ranking-tabs button').forEach(x=>x.classList.toggle('active',x.dataset.rankingCat===state.rankingCat));renderRankings()});
- if($('#rankingWorld'))$('#rankingWorld').onchange=e=>{state.rankingWorld=e.target.value;state.rankingPage=1;delete state.rankingConferences[state.rankingWorld];renderRankingConferenceOptions();renderRankings()};if($('#standingConf'))$('#standingConf').onchange=()=>{state.rankingPage=1;renderRankings()};if($('#rankingRefresh'))$('#rankingRefresh').onclick=refreshRankingData;$$('.game-tabs button[data-game-filter]').forEach(b=>b.onclick=()=>{state.gameFilter=b.dataset.gameFilter;renderGames()});if($('#openPickemFromGames'))$('#openPickemFromGames').onclick=openPredictions;
+ if($('#rankingWorld'))$('#rankingWorld').onchange=e=>{state.rankingWorld=e.target.value;state.rankingPage=1;delete state.rankingConferences[state.rankingWorld];renderRankingConferenceOptions();renderRankings()};if($('#standingConf'))$('#standingConf').onchange=()=>{state.rankingPage=1;renderRankings()};if($('#rankingRefresh'))$('#rankingRefresh').onclick=refreshRankingData;$$('.game-tabs button[data-game-filter]').forEach(b=>b.onclick=()=>{state.gameFilter=b.dataset.gameFilter;renderGames()});if($('#openPickemFromGames'))$('#openPickemFromGames').onclick=()=>{state.dailyPickemMode='today';state.dailyPickemDate=state.gameDate||isoToday();show('daily-pickem')};
  if($('#gamesConference'))$('#gamesConference').onchange=e=>{state.gameConference=e.target.value;state.gameSchool='all';renderGames()};if($('#gamesSchool'))$('#gamesSchool').onchange=e=>{state.gameSchool=e.target.value;const meta=(state.teamRows||[]).find(t=>t.school===state.gameSchool);if(meta?.conference){state.gameConference=meta.conference}renderGames()};if($('#gamesDate'))$('#gamesDate').onchange=e=>setGameDate(e.target.value);if($('#gamesCalendarBtn'))$('#gamesCalendarBtn').onclick=()=>{const el=$('#gamesDate');if(el.showPicker)el.showPicker();else el.focus()};if($('#gamesSync'))$('#gamesSync').onclick=syncGamesOnly;
- if($('#createLeague'))$('#createLeague').onclick=()=>openModal(`<div class="eyebrow">CREATE LEAGUE</div><h2>Create a fantasy league</h2><label>League name<input id="leagueName" class="modal-input" value="New College Soccer Fantasy League"></label><button id="createLeagueSave" class="btn btn-primary btn-full">CREATE</button>`);if($('#joinLeague'))$('#joinLeague').onclick=()=>openModal(`<div class="eyebrow">JOIN LEAGUE</div><h2>Join with a code</h2><input id="leagueCode" class="modal-input" placeholder="League code"><button id="joinLeagueSave" class="btn btn-primary btn-full">JOIN</button>`);document.addEventListener('click',e=>{if(e.target.id==='sendResetBtn'){toast('Reset-link flow is ready for authentication provider integration.');closeModal()}if(e.target.id==='signupBtn'){const team=$('#signupTeam')?.value.trim(),handle=$('#signupHandle')?.value.trim();if(team)state.profile.team=team;if(handle)state.profile.handle=handle.replace(/^@/,'');state.profile.initials=(state.profile.handle.slice(0,2)||'LC').toUpperCase();save();sessionStorage.setItem('college_fantasy_v1_authenticated','1');closeModal();$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(false);loadWorld(state.activeWorld);}if(e.target.id==='createLeagueSave'){state.leagues.push({name:$('#leagueName').value||'New League',world:state.activeWorld,members:1,rank:1});save();closeModal();renderCompetitions();toast('League created.')}if(e.target.id==='joinLeagueSave'){state.leagues.push({name:'Joined League',world:state.activeWorld,members:16,rank:16});save();closeModal();renderCompetitions();toast('League joined.')}});$$('[data-action]').forEach(b=>b.onclick=()=>{if(['gamesPredictions','pickem'].includes(b.dataset.action))openPredictions();else if(b.dataset.action==='profile')openProfile();else if(b.dataset.action==='notifications')showNotifications();else toast('No new notifications.')});if($('#menuBtn'))$('#menuBtn').onclick=()=>$('#nav').classList.toggle('nav-open');if($('#modalClose'))$('#modalClose').onclick=closeModal;if($('#modal'))$('#modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
+ if($('#createLeague'))$('#createLeague').onclick=()=>openModal(`<div class="eyebrow">CREATE LEAGUE</div><h2>Create a fantasy league</h2><label>League name<input id="leagueName" class="modal-input" value="New College Soccer Fantasy League"></label><button id="createLeagueSave" class="btn btn-primary btn-full">CREATE</button>`);if($('#joinLeague'))$('#joinLeague').onclick=()=>openModal(`<div class="eyebrow">JOIN LEAGUE</div><h2>Join with a code</h2><input id="leagueCode" class="modal-input" placeholder="League code"><button id="joinLeagueSave" class="btn btn-primary btn-full">JOIN</button>`);document.addEventListener('click',e=>{if(e.target.id==='sendResetBtn'){toast('Reset-link flow is ready for authentication provider integration.');closeModal()}if(e.target.id==='signupBtn'){const team=$('#signupTeam')?.value.trim(),handle=$('#signupHandle')?.value.trim();if(team)state.profile.team=team;if(handle)state.profile.handle=handle.replace(/^@/,'');state.profile.initials=(state.profile.handle.slice(0,2)||'LC').toUpperCase();save();sessionStorage.setItem('college_fantasy_v1_authenticated','1');closeModal();$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(false);loadWorld(state.activeWorld);}if(e.target.id==='createLeagueSave'){state.leagues.push({name:$('#leagueName').value||'New League',world:state.activeWorld,members:1,rank:1});save();closeModal();renderCompetitions();toast('League created.')}if(e.target.id==='joinLeagueSave'){state.leagues.push({name:'Joined League',world:state.activeWorld,members:16,rank:16});save();closeModal();renderCompetitions();toast('League joined.')}});$$('[data-action]').forEach(b=>b.onclick=()=>{if(['gamesPredictions','pickem'].includes(b.dataset.action)){state.dailyPickemMode='today';state.dailyPickemDate=isoToday();show('daily-pickem')} else if(b.dataset.action==='profile')openProfile();else if(b.dataset.action==='notifications')showNotifications();else toast('No new notifications.')});if($('#menuBtn'))$('#menuBtn').onclick=()=>$('#nav').classList.toggle('nav-open');if($('#modalClose'))$('#modalClose').onclick=closeModal;if($('#modal'))$('#modal').onclick=e=>{if(e.target.id==='modal')closeModal()};
 }
 function init(){applyLang();renderWorldSelectors();bind();renderBoost();const auth=sessionStorage.getItem('college_fantasy_v1_authenticated');if(auth){$('#loginScreen').classList.add('hidden');$('#appShell').classList.remove('hidden');boot(false);loadWorld(state.activeWorld)}else{$('#loginScreen').classList.remove('hidden');$('#appShell').classList.add('hidden');boot(false)}state.refreshTimersStarted=true}
 init();

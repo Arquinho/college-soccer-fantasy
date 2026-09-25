@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>College Soccer Fantasy</title>
-  <link rel="stylesheet" href="styles.css?v=10.0.0" />
+  <link rel="stylesheet" href="styles.css?v=10.2.0" />
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -125,11 +125,121 @@
         <div class="panel ncaa-scoreboard-controls"><div class="scoreboard-filter-row"><select id="gamesConference"><option value="all">All conferences</option></select><select id="gamesSchool"><option value="all">All schools</option></select><div class="calendar-control"><input id="gamesDate" type="date" min="2026-08-01" max="2026-12-31"><button id="gamesCalendarBtn" type="button" class="calendar-button" aria-label="Calendar">📅</button></div></div><div id="gamesDateStrip" class="games-date-strip"></div><div class="scoreboard-meta"><h2 id="gamesDateTitle">Games</h2><span id="gamesCoverage" class="coverage-note"></span></div></div>
         <div class="pill-tabs game-tabs"><button class="active" data-game-filter="all">Schedule</button><button data-game-filter="live">Live</button><button data-game-filter="scheduled">Upcoming</button><button data-game-filter="finished">Results</button><button id="openPickemFromGames">Pick'em</button></div><div id="gamesList" class="games-list ncaa-games-grid"></div>
       </section>
+
+      <section id="daily-games" class="page daily-games-page">
+        <div class="daily-games-hero">
+          <div class="daily-games-hero-copy">
+            <div class="eyebrow">COLLEGE SOCCER DAILY GAMES</div>
+            <h1>Play your world every day.</h1>
+            <p>Make your picks, identify the mystery player and build a streak in a completely separate challenge for every college soccer world.</p>
+            <div class="daily-games-world-badge"><span id="dailyGamesWorldDot"></span><b id="dailyGamesWorldLabel">NCAA D1 WORLD</b><small>Independent progress &amp; streak</small></div>
+          </div>
+          <div class="daily-world-switcher" id="dailyWorldSwitcher"></div>
+        </div>
+
+        <div class="daily-progress-grid">
+          <article class="panel daily-progress-card"><small>TODAY'S PROGRESS</small><div><strong id="dailyProgressValue">0/2</strong><span>games completed</span></div><div class="daily-progress-track"><i id="dailyProgressBar"></i></div></article>
+          <article class="panel daily-progress-card"><small>CURRENT STREAK</small><div><strong id="dailyStreakValue">0</strong><span>days 🔥</span></div><p>Complete both daily games to keep it alive.</p></article>
+          <article class="panel daily-progress-card"><small>DAILY SCORE</small><div><strong id="dailyPointsValue">0</strong><span>pts</span></div><p>Pick'em and Guess the Player score separately.</p></article>
+        </div>
+
+        <div class="daily-game-cards">
+          <article class="daily-game-card pickem-card">
+            <div class="daily-game-topline"><span class="daily-game-icon">⚽</span><span class="daily-game-status">TODAY'S MATCHES</span></div>
+            <div class="daily-game-copy"><div class="eyebrow">COLLEGE PICK'EM</div><h2>Call the results.</h2><p>Choose home win, draw or away win before kickoff. Your picks lock when each match begins and score automatically from verified results.</p></div>
+            <div class="daily-game-meta"><span>✓ Every active-world match</span><span>🔒 Locks at kickoff</span><span>🏆 World leaderboard</span></div>
+            <button class="btn btn-primary daily-game-cta" data-daily-preview="pickem">PLAY PICK'EM →</button>
+          </article>
+
+          <article class="daily-game-card guess-card">
+            <div class="daily-game-topline"><span class="daily-game-icon">🕵️</span><span class="daily-game-status">5 DAILY PLAYERS</span></div>
+            <div class="daily-game-copy"><div class="eyebrow">GUESS THE PLAYER</div><h2>How well do you know college soccer?</h2><p>Use yes/no clues about school, conference, position, class and college era, then identify the mystery player before your guesses run out.</p></div>
+            <div class="daily-game-meta"><span>🕵️ 5 players per day</span><span>❓ Up to 10 questions each</span><span>🎯 3 guesses each</span></div>
+            <button class="btn btn-primary daily-game-cta" data-daily-preview="guess">PLAY PLAYER 1/5 →</button>
+          </article>
+        </div>
+
+        <article class="panel daily-how-card">
+          <div><div class="eyebrow">ONE PROFILE · FOUR WORLDS</div><h2>Daily Games work independently in every division.</h2><p>Your NCAA D1 picks never affect NCAA D2, NAIA or NJCAA D1. Switch worlds at any time and keep a separate score and streak in each one.</p></div>
+          <div class="daily-how-steps"><span><b>1</b>Choose a world</span><span><b>2</b>Play both daily games</span><span><b>3</b>Build your streak</span></div>
+        </article>
+      </section>
+
+      <section id="daily-pickem" class="page daily-play-page">
+        <div class="daily-play-head">
+          <button class="daily-back-btn" data-jump="daily-games">← DAILY GAMES</button>
+          <div class="daily-play-title"><div class="eyebrow">COLLEGE PICK'EM</div><h1>Make your call.</h1><p id="dailyPickemWorldCopy">Predict every match in your active college soccer world.</p></div>
+          <div class="daily-play-world"><small>ACTIVE WORLD</small><strong id="dailyPickemWorldBadge">NCAA D1</strong></div>
+        </div>
+
+        <div class="daily-kpi-grid">
+          <article class="panel daily-kpi"><small>DATE SCORE</small><strong id="dailyPickemScore">0</strong><span>pts</span></article>
+          <article class="panel daily-kpi"><small>PICKS MADE</small><strong id="dailyPickemMade">0/0</strong><span>matches</span></article>
+          <article class="panel daily-kpi"><small>CORRECT</small><strong id="dailyPickemCorrect">0</strong><span>graded picks</span></article>
+          <article class="panel daily-kpi"><small>STATUS</small><strong id="dailyPickemStatus">OPEN</strong><span id="dailyPickemStatusSub">Picks save automatically</span></article>
+        </div>
+
+        <article class="panel pickem-board">
+          <div class="pickem-toolbar">
+            <div class="pill-tabs pickem-mode-tabs">
+              <button class="active" data-pickem-mode="today">Today</button>
+              <button data-pickem-mode="upcoming">Upcoming</button>
+              <button data-pickem-mode="results">My Results</button>
+            </div>
+            <div class="pickem-date-tools"><button id="dailyPickemPrev" class="date-arrow">‹</button><input id="dailyPickemDate" type="date"><button id="dailyPickemNext" class="date-arrow">›</button></div>
+          </div>
+          <div class="pickem-board-head"><div><div class="eyebrow">MATCHDAY</div><h2 id="dailyPickemDateLabel">Today's matches</h2></div><div class="pickem-scoring"><span><b>+20</b> exact score</span><span><b>+10</b> correct outcome</span><span><b>0</b> miss</span></div></div>
+          <div class="pickem-college-note"><span>COLLEGE MATCHDAY</span><b>Pick the winner or call the exact score.</b><small>Conference identity · campus matchups · world-specific standings</small></div><div id="dailyPickemGames" class="daily-pickem-games"><div class="daily-loading">Loading matches…</div></div>
+        </article>
+      </section>
+
+      <section id="daily-guess" class="page daily-play-page">
+        <div class="daily-play-head">
+          <button class="daily-back-btn" data-jump="daily-games">← DAILY GAMES</button>
+          <div class="daily-play-title"><div class="eyebrow">GUESS THE PLAYER</div><h1>How well do you know college soccer?</h1><p id="dailyGuessWorldCopy">Use smart yes/no questions, then identify today's mystery player.</p></div>
+          <div class="daily-play-world"><small>ACTIVE WORLD</small><strong id="dailyGuessWorldBadge">NCAA D1</strong></div>
+        </div>
+
+        <div class="guess-status-row">
+          <article class="panel guess-status-card"><small>QUESTIONS</small><strong id="dailyGuessQuestionCount">0/10</strong></article>
+          <article class="panel guess-status-card"><small>GUESSES LEFT</small><strong id="dailyGuessAttempts">3</strong></article>
+          <article class="panel guess-status-card"><small>CHALLENGE SCORE</small><strong id="dailyGuessScore">100</strong></article>
+          <article class="panel guess-status-card"><small>DAILY STREAK</small><strong id="dailyGuessStreak">0 🔥</strong></article>
+        </div>
+
+        <div id="dailyGuessRoundNav" class="guess-round-nav" aria-label="Today's five Guess the Player challenges"></div>
+
+        <div class="daily-guess-layout">
+          <article class="panel mystery-player-card">
+            <div class="mystery-top"><div><div class="eyebrow">TODAY'S MYSTERY PLAYER</div><h2 id="mysteryTitle">Who is it?</h2></div><span id="mysteryChallengeTag" class="challenge-tag">DAILY CHALLENGE</span></div>
+            <div id="mysteryVisual" class="mystery-visual"><div class="mystery-silhouette">?</div><div><strong>Hidden Player</strong><span id="mysteryWorldText">NCAA D1 · historical player pool</span></div></div>
+            <div id="mysteryReveal" class="mystery-reveal hidden"></div>
+            <div class="guess-rule"><span>Ask up to 10 questions</span><span>Use up to 3 final guesses</span></div>
+          </article>
+
+          <article class="panel guess-question-panel">
+            <div class="panel-title"><div><div class="eyebrow">ASK A QUESTION</div><h2>Narrow it down.</h2></div></div>
+            <div class="question-builder"><select id="guessQuestionType"><option value="position">Position</option><option value="conference">Conference</option><option value="school">School</option><option value="class">Class year</option><option value="season">Played in season</option><option value="era">Played in / after year</option><option value="multiple">Multiple college seasons</option><option value="tournament">National tournament</option><option value="ranked">Ranked team</option></select><select id="guessQuestionValue"></select><button id="askGuessQuestion" class="btn btn-primary">ASK</button></div>
+            <div id="guessQuestionHistory" class="guess-history"><div class="data-empty">No questions asked yet.</div></div>
+          </article>
+
+          <article class="panel final-guess-panel">
+            <div class="panel-title"><div><div class="eyebrow">FINAL GUESS</div><h2>Name the player.</h2></div></div>
+            <p class="fine">Type at least 3 letters. Results come from the active world's player database.</p>
+            <div class="player-guess-search"><input id="dailyGuessSearch" autocomplete="off" placeholder="Search player name…"><div id="dailyGuessSuggestions" class="player-guess-suggestions"></div></div>
+            <div id="dailyGuessSelected" class="selected-guess hidden"></div>
+            <button id="submitDailyGuess" class="btn btn-primary btn-full" disabled>SUBMIT GUESS</button>
+            <div id="dailyGuessHistory" class="wrong-guess-list"></div>
+          </article>
+        </div>
+      </section>
+
+
     </main>
   </div>
 
   <div id="toast" class="toast"></div>
   <div id="modal" class="modal"><div class="modal-card"><button id="modalClose" class="modal-x">×</button><div id="modalBody"></div></div></div>
-  <script src="app.js?v=10.0.0"></script>
+  <script src="app.js?v=10.3.0"></script>
 </body>
 </html>

@@ -178,6 +178,25 @@ CREATE TABLE IF NOT EXISTS stat_leaders (
     UNIQUE(snapshot_date, division, category, name, school)
 );
 
+
+
+CREATE TABLE IF NOT EXISTS guess_players (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    school TEXT NOT NULL,
+    division TEXT NOT NULL,
+    season INTEGER NOT NULL,
+    position TEXT,
+    class_year TEXT,
+    conference TEXT,
+    tournament_team INTEGER,
+    ranked_team INTEGER,
+    source_url TEXT,
+    source_name TEXT,
+    source_updated_at TEXT,
+    UNIQUE(name, school, division, season)
+);
+
 CREATE TABLE IF NOT EXISTS source_status (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     source TEXT NOT NULL,
@@ -293,6 +312,8 @@ def init_db():
         conn.execute("CREATE INDEX IF NOT EXISTS idx_players_market ON players(division, conference, school, position, price)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_stats_player_season ON player_season_stats(player_id, season)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_games_date_v3 ON games(division, game_date, status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_guess_players_world_season ON guess_players(division, season, name)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_guess_players_search ON guess_players(division, name, school)")
 
 
 def rows(sql, params=()):

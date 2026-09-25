@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request, send_from_directory
 from datetime import date, timedelta
 import threading
 import os
+import hashlib
 from config import PORT, HOST
 from database import init_db, rows, row, db
 from services.sync import sync_tds_rankings, sync_tds_extended, sync_tds_standings_only, recalc_prices, sync_registry, sync_ncaa_stat_tables, sync_ncaa_game_history, sync_ncaa_season_schedule_fast, sync_registered_school_schedules, sync_ncaa_rankings, sync_ncaa_standings, sync_ncaa_upcoming_games, sync_all_school_stats, _team_key
@@ -17,6 +18,38 @@ STATS_JOBS = {}
 STATS_LOCK = threading.Lock()
 SCHEDULE_JOBS = {}
 SCHEDULE_LOCK = threading.Lock()
+
+# Temporary Guess the Player test setup.
+# Only NCAA D1, round 1, on 2026-09-25 is forced to Pedro Arcoverde.
+# Every other round/date stays deterministic-random from the real player pool.
+GUESS_DAILY_ROUNDS = 5
+GUESS_TEST_DATE = '2026-09-25'
+GUESS_TEST_PLAYER = {
+    # v2 intentionally changes the answer key so a browser that already solved
+    # the earlier test automatically resets Player 1 when this corrected test loads.
+    'id': 'D1:test:pedro-arcoverde:v3',
+    'name': 'Pedro Arcoverde',
+    'division': 'D1',
+    # Display the latest D1 stop, while keeping the complete D1 history for clues.
+    'school': 'Florida Gulf Coast University',
+    'schools': ['Missouri State University', 'Florida Gulf Coast University'],
+    'conference': 'ASUN',
+    'conferences': ['Missouri Valley', 'ASUN'],
+    'position': 'DF',
+    'positions': ['DF'],
+    'class_year': 'Graduate',
+    'season': 2025,
+    'seasons': [2023, 2024, 2025],
+    'first_season': 2023,
+    'last_season': 2025,
+    'multiple_seasons': True,
+    # Missouri State reached the NCAA tournament and was nationally ranked
+    # during Pedro's D1 seasons, so both clue families should answer YES.
+    'tournament_team': True,
+    'ranked_team': True,
+    'source_url': 'https://fgcuathletics.com/sports/mens-soccer/roster/2025',
+    'source_name': 'FGCU Athletics / Missouri State Athletics',
+}
 
 def _repair_conference_cache():
     """Normalize cached soccer conference labels without doing any network I/O."""
@@ -67,6 +100,212 @@ def player_query(division, where='', params=()):
         all_params.extend(params)
     sql += ' ORDER BY p.price DESC,p.name'
     return rows(sql, tuple(all_params))
+
+
+def _guess_norm(value):
+    return ' '.join(str(value or '').strip().lower().split())
+
+
+def _seed_current_guess_pool(division):
+    """Keep the Guess the Player pool usable even before historical import runs."""
+    try:
+        with db() as conn:
+            conn.execute(
+                """INSERT OR IGNORE INTO guess_players
+                   (name,school,division,season,position,class_year,conference,source_url,source_name,source_updated_at)
+                   SELECT name,school,division,2026,position,class_year,conference,source_url,
+                          COALESCE(source_name,'Current roster'),COALESCE(source_updated_at,DATE('now'))
+                   FROM players WHERE division=?""",
+                (division,),
+            )
+    except Exception:
+        pass
+
+
+def _guess_person_payload(division, player_name):
+    history = rows(
+        """SELECT * FROM guess_players
+           WHERE division=? AND season BETWEEN 2021 AND 2026 AND lower(trim(name))=lower(trim(?))
+           ORDER BY season ASC,id ASC""",
+        (division, player_name),
+    )
+    if not history:
+        return None
+    # Use the most recent record as the display row, but questions can use the
+    # player's whole history inside the active world.
+    latest = sorted(history, key=lambda x: (int(x.get('season') or 0), int(x.get('id') or 0)))[-1]
+    seasons = sorted({int(x['season']) for x in history if x.get('season')})
+    schools = []
+    conferences = []
+    positions = []
+    for x in history:
+        if x.get('school') and x['school'] not in schools: schools.append(x['school'])
+        if x.get('conference') and x['conference'] not in conferences: conferences.append(x['conference'])
+        if x.get('position') and x['position'] not in positions: positions.append(x['position'])
+    tournament_values = [x.get('tournament_team') for x in history if x.get('tournament_team') is not None]
+    ranked_values = [x.get('ranked_team') for x in history if x.get('ranked_team') is not None]
+    return {
+        'id': f"{division}:{_guess_norm(player_name)}",
+        'name': latest.get('name') or player_name,
+        'division': division,
+        'school': latest.get('school'),
+        'schools': schools,
+        'conference': latest.get('conference'),
+        'conferences': conferences,
+        'position': latest.get('position'),
+        'positions': positions,
+        'class_year': latest.get('class_year'),
+        'season': latest.get('season'),
+        'seasons': seasons,
+        'first_season': min(seasons) if seasons else None,
+        'last_season': max(seasons) if seasons else None,
+        'multiple_seasons': len(seasons) > 1,
+        'tournament_team': bool(max(tournament_values)) if tournament_values else None,
+        'ranked_team': bool(max(ranked_values)) if ranked_values else None,
+        'source_url': latest.get('source_url'),
+        'source_name': latest.get('source_name'),
+    }
+
+
+def _guess_pool_meta(division):
+    data = rows(
+        """SELECT name,school,conference,class_year,season,position,tournament_team,ranked_team
+           FROM guess_players WHERE division=? AND season BETWEEN 2021 AND 2026""",
+        (division,),
+    )
+    return {
+        'schools': sorted({x['school'] for x in data if x.get('school')}),
+        'conferences': sorted({x['conference'] for x in data if x.get('conference')}),
+        'classes': sorted({x['class_year'] for x in data if x.get('class_year')}),
+        'seasons': sorted({int(x['season']) for x in data if x.get('season')}),
+        'has_tournament': any(x.get('tournament_team') is not None for x in data),
+        'has_ranked': any(x.get('ranked_team') is not None for x in data),
+    }
+
+
+@app.route('/api/guess-player/today')
+def api_guess_player_today():
+    div = world_arg()
+    _seed_current_guess_pool(div)
+    challenge_date = request.args.get('date') or date.today().isoformat()
+    try:
+        round_no = max(1, min(GUESS_DAILY_ROUNDS, int(request.args.get('round') or 1)))
+    except (TypeError, ValueError):
+        round_no = 1
+
+    meta = _guess_pool_meta(div)
+
+    # One-time product test requested by the user. This affects only the first
+    # NCAA D1 challenge on 2026-09-25. Rounds 2-5 and every other date use the
+    # normal player pool.
+    if div == 'D1' and challenge_date == GUESS_TEST_DATE and round_no == 1:
+        # Make every valid clue for the forced test player available in the
+        # dropdowns, including his earlier D1 school/conference history.
+        for key, incoming in (
+            ('schools', GUESS_TEST_PLAYER.get('schools') or [GUESS_TEST_PLAYER.get('school')]),
+            ('conferences', GUESS_TEST_PLAYER.get('conferences') or [GUESS_TEST_PLAYER.get('conference')]),
+            ('classes', [GUESS_TEST_PLAYER.get('class_year')]),
+            ('seasons', GUESS_TEST_PLAYER.get('seasons') or [GUESS_TEST_PLAYER.get('season')]),
+        ):
+            values = meta.setdefault(key, [])
+            for value in incoming:
+                if value is not None and value not in values:
+                    values.append(value)
+            values.sort()
+        return jsonify({
+            'world': div,
+            'date': challenge_date,
+            'round': round_no,
+            'daily_rounds': GUESS_DAILY_ROUNDS,
+            'test_mode': True,
+            'answer': GUESS_TEST_PLAYER,
+            'pool': meta,
+            'pool_count': max(1, len(rows(
+                """SELECT DISTINCT lower(trim(name)) AS person_key
+                   FROM guess_players
+                   WHERE division=? AND season BETWEEN 2021 AND 2026
+                     AND trim(name)<>''""",
+                (div,),
+            ))),
+            'min_season': min(meta['seasons']) if meta['seasons'] else 2026,
+            'max_season': max(meta['seasons']) if meta['seasons'] else 2026,
+        })
+
+    people = rows(
+        """SELECT lower(trim(name)) AS person_key, MIN(name) AS name,
+                  COUNT(DISTINCT season) AS season_count
+           FROM guess_players
+           WHERE division=? AND season BETWEEN 2021 AND 2026
+             AND trim(name)<>'' AND trim(school)<>''
+             AND position IS NOT NULL AND trim(position)<>''
+           GROUP BY lower(trim(name)) ORDER BY person_key""",
+        (div,),
+    )
+    if not people:
+        return jsonify({'error': 'No Guess the Player data is available for this world yet.'}), 404
+
+    # Build one deterministic daily ordering and take a different slot for
+    # each round. This guarantees five distinct players whenever the pool has
+    # at least five people, while every user still gets the same daily set.
+    if div == 'D1' and challenge_date == GUESS_TEST_DATE:
+        people = [p for p in people if _guess_norm(p.get('name')) != _guess_norm(GUESS_TEST_PLAYER['name'])] or people
+    day_seed = hashlib.sha256(
+        f'{challenge_date}|{div}|college-xi-history-v4'.encode('utf-8')
+    ).hexdigest()
+    ordered = sorted(
+        people,
+        key=lambda p: hashlib.sha256(
+            f"{day_seed}|{p.get('person_key') or _guess_norm(p.get('name'))}".encode('utf-8')
+        ).hexdigest(),
+    )
+    chosen = ordered[(round_no - 1) % len(ordered)]
+    answer = _guess_person_payload(div, chosen['name'])
+    return jsonify({
+        'world': div,
+        'date': challenge_date,
+        'round': round_no,
+        'daily_rounds': GUESS_DAILY_ROUNDS,
+        'test_mode': False,
+        'answer': answer,
+        'pool': meta,
+        'pool_count': len(people),
+        'min_season': min(meta['seasons']) if meta['seasons'] else 2026,
+        'max_season': max(meta['seasons']) if meta['seasons'] else 2026,
+    })
+
+
+@app.route('/api/guess-player/search')
+def api_guess_player_search():
+    div = world_arg()
+    _seed_current_guess_pool(div)
+    q = _guess_norm(request.args.get('q'))
+    if len(q) < 2:
+        return jsonify([])
+    test_matches = []
+    if div == 'D1' and q in _guess_norm(GUESS_TEST_PLAYER['name']):
+        test_matches.append(dict(GUESS_TEST_PLAYER))
+    matches = rows(
+        """SELECT * FROM guess_players
+           WHERE division=? AND season BETWEEN 2021 AND 2026 AND lower(name) LIKE ?
+           ORDER BY season DESC,name,school LIMIT 120""",
+        (div, f'%{q}%'),
+    )
+    seen = set(); out = []
+    for payload in test_matches:
+        key = _guess_norm(payload.get('name'))
+        if key and key not in seen:
+            seen.add(key)
+            out.append(payload)
+    for item in matches:
+        key = _guess_norm(item.get('name'))
+        if not key or key in seen: continue
+        seen.add(key)
+        payload = _guess_person_payload(div, item['name'])
+        if payload:
+            out.append(payload)
+        if len(out) >= 12: break
+    return jsonify(out)
+
 
 @app.route('/')
 def index(): return send_from_directory('static','index.html')

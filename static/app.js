@@ -38,6 +38,20 @@ const verifiedGameSnapshots={
   {game_date:'2026-09-23',home_team:'Oregon St.',away_team:'Seattle U',status:'scheduled · 10:00 PM EDT',division:'D1',start_time:'10:00 PM EDT',source_name:'NCAA.com',source_url:'https://www.ncaa.com/scoreboard/soccer-men/d1/2026/09/23/all-conf'}
  ]}
 };
+// One-time clean start for the published demo. This is NOT a user-facing reset.
+const DEMO_RESET_VERSION='demo-clean-2026-09-25-v1';
+if(localStorage.getItem('college_fantasy_demo_reset_version')!==DEMO_RESET_VERSION){
+  Object.keys(localStorage)
+    .filter(k=>k.startsWith('college_fantasy_'))
+    .forEach(k=>localStorage.removeItem(k));
+
+  Object.keys(sessionStorage)
+    .filter(k=>k.startsWith('college_fantasy_') && k!=='college_fantasy_v1_authenticated')
+    .forEach(k=>sessionStorage.removeItem(k));
+
+  localStorage.setItem('college_fantasy_demo_reset_version',DEMO_RESET_VERSION);
+}
+
 const saved=JSON.parse(localStorage.getItem('college_fantasy_v1_state')||'{}');
 const state={lang:saved.lang||'en',activeWorld:saved.activeWorld||'D1',profile:saved.profile||{team:'Campus Eleven F.C.',handle:'manager',initials:'LC'},participation:saved.participation||{D1:true,D2:false,D3:false,NAIA:false,NJCAA1:false},worldState:saved.worldState||{},predictions:saved.predictions||{},dailyGames:saved.dailyGames||{},leagues:saved.leagues||[],dashboardCache:saved.dashboardCache||{},players:[],coaches:[],games:[],news:[],filters:{conferences:[],schools:[]},teamRows:[],gameCoverage:null,statsCoverage:null,statsSyncing:{},rankingWorld:saved.rankingWorld||'D1',rankingCat:saved.rankingCat||'scorers',rankingPage:1,rankingPageSize:15,rankingConferences:{},rankingSyncing:false,gameFilter:'all',gameConference:'all',gameSchool:'all',gameDate:saved.gameDate||isoToday(),predConference:'all',predSchool:'all',predPage:1,predPageSize:15,newsFilter:'all',rankingRemote:{},rankingLoading:{},seasonSyncing:{},refreshTimersStarted:false,marketVisibleCount:60,marketContext:{type:'players',position:'all',bench:false},rosterLoaded:false,rosterPromise:null,playerBuckets:{},coachesLoaded:false,coachPromise:null,marketLoading:false,filtersLoaded:false,extendedGamesLoaded:false,coverageLoaded:false,loadToken:0};
 state.dailyPickemDate=isoToday();state.dailyPickemMode='today';state.dailyPickemCache={};state.dailyPickemLoading=false;state.dailyGuessRound=1;state.dailyGuessRuntime=null;state.dailyGuessLoading=false;state.dailyGuessSelected=null;state.dailyGuessSearchTimer=null;
